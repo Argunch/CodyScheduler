@@ -1,0 +1,104 @@
+.schedule-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: auto;
+    border: 1px solid #ddd;
+}
+
+.days-container {
+    display: flex;
+    flex-grow: 1;
+}
+
+
+.time-column {
+    display: flex;
+    flex-direction: column;
+    min-width: 60px;
+    position:sticky;
+    left: 0;
+    z-index:2;
+}
+
+.day-column {
+    flex: 1;
+    min-width: 120px;
+}
+
+.time-cell {
+    min-height: 50px;
+    border: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f9f9f9;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+}
+
+
+.schedule-cell {
+    min-height: 50px;
+    border: 1px solid #ddd;
+    overflow: hidden;
+    background-color: white;
+}
+
+/* Цвета для ячеек */
+.schedule-cell.blue {
+    background-color: #3498db;
+    color: white;
+}
+
+.schedule-cell.yellow {
+    background-color: #f1c40f;
+    color: black;
+}
+
+.schedule-cell.green {
+    background-color: #2ecc71;
+    color: white;
+}
+/* ------------- */
+
+.schedule-cell:hover{
+    filter: brightness(0.95);
+}
+
+.schedule-cell.blue:hover,
+.schedule-cell.yellow:hover,
+.schedule-cell.green:hover {
+    filter: brightness(0.8);
+}
+
+
+.day-header {
+    padding: 10px;
+    text-align: center;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    font-weight: bold;
+    position: sticky;
+    min-height: 20px;
+    top: 0;
+    z-index: 1;
+}
+
+
+
+
+
+.time-header {
+    padding: 10px;
+    text-align: center;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+
+

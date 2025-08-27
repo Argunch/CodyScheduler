@@ -1,0 +1,14 @@
+@import url('schedule.css');
+@import url('week_controller.css');
+@import url('add_note.css');
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #FFA500;
+}
+
+
+
+
