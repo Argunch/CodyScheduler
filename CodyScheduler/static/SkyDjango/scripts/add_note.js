@@ -47,6 +47,9 @@ function showEventModal(cell)
     document.getElementById('event-modal').style.display = 'block';
     document.getElementById('modal-overlay').style.display = 'block';
 
+    // Показываем / скрываем кнопку удаления
+    toggleDeleteButton();
+
     // Фокусируемся на текстовом поле
     document.getElementById('event-text').focus();
 }
@@ -58,8 +61,81 @@ function hideEventModal() {
     currentCell = null;
 }
 
+async function deleteEvent()
+{
+    if (currentCell)
+    {
+        // Очищаем ячейку
+        currentCell.textContent = '';
+        currentCell.classList.remove('blue', 'yellow', 'green');
+        currentCell.removeAttribute('data-color');
 
-async function saveEventToServer(cell,text,color)
+        // Удаляем на сервере
+        await deleteEventFromServer(currentCell);
+    }
+    hideEventModal();
+}
+
+// Функция отправки запроса на удаление на сервер
+async function deleteEventFromServer(cell) {
+    const date = cell.getAttribute('data-date');
+    let time = cell.getAttribute('data-time');
+    const isRecurring = document.getElementById('is-recurring')?.checked;
+
+    // Преобразуем время в правильный формат HH:MM:SS
+    if (time && !time.includes(':')) {
+        time = time.padStart(2, '0') + ':00:00'; // "7" → "07:00:00"
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/delete-event/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                date: date,
+                time: time,
+                delete_recurring: isRecurring
+            })
+        });
+
+        const data = await response.json();
+        if (data.status !== 'success') {
+            console.error('Ошибка удаления:', data.message);
+        }
+    } catch (error) {
+        console.error('Ошибка сети:', error);
+    }
+}
+
+// Функция проверки, есть ли существующая запись в ячейке
+function hasExistingEvent(cell) {
+    return cell.textContent.trim() !== '' || cell.getAttribute('data-color');
+}
+
+
+
+// Функция показа/скрытия кнопки удаления
+function toggleDeleteButton() {
+    const deleteBtn = document.getElementById('delete-note');
+    if (currentCell && hasExistingEvent(currentCell)) {
+        deleteBtn.style.display = 'inline-block'; // Показываем кнопку
+    } else {
+        deleteBtn.style.display = 'none'; // Скрываем кнопку
+    }
+}
+
+// Функция показа/скрытия кнопки удаления регулярных занятий
+function toggleRecurringDeleteOption() {
+    const option = document.getElementById('recurring-delete-option');
+    const isRecurring = currentCell.getAttribute('data-recurring') === 'true';
+    option.style.display = isRecurring ? 'block' : 'none';
+}
+
+
+async function saveEventToServer(cell,text,color,isRecurring=false)
 {
     const date=cell.getAttribute('data-date');
     const time=cell.getAttribute('data-time');
@@ -75,7 +151,8 @@ async function saveEventToServer(cell,text,color)
                 date: date,
                 time: time,
                 text: text,
-                color: color
+                color: color,
+                is_recurring: isRecurring  // Добавляем флаг регулярности
             })
         });
 
@@ -130,6 +207,7 @@ function getCSRFToken() {
 function saveEvent() {
     if (currentCell) {
         const eventText = document.getElementById('event-text').value;
+        const isRecurring = document.getElementById('is-recurring').checked;
         currentCell.textContent = eventText;
 
         // Устанавливаем цвет
@@ -145,7 +223,7 @@ function saveEvent() {
             currentCell.removeAttribute('data-color');
         }
         // Сохраняем на сервер
-        saveEventToServer(currentCell, eventText, selectedColor);
+        saveEventToServer(currentCell, eventText, selectedColor, isRecurring);
     }
 
 
@@ -207,4 +285,4 @@ document.querySelectorAll('.color-option').forEach(option => {
     });
 });
 
-export {saveEvent,hideEventModal,showEventModal,loadEventsForWeek};
+export {saveEvent,deleteEvent,hideEventModal,showEventModal,loadEventsForWeek};

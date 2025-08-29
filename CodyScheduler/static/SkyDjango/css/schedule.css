@@ -2,7 +2,6 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    overflow: auto;
     border: 1px solid #ddd;
 }
 
@@ -27,7 +26,7 @@
 }
 
 .time-cell {
-    min-height: 50px;
+    min-height: 30px;
     border: 1px solid #ddd;
     display: flex;
     align-items: center;
@@ -40,10 +39,42 @@
 
 
 .schedule-cell {
-    min-height: 50px;
+    min-height: 30px;
     border: 1px solid #ddd;
     overflow: hidden;
     background-color: white;
+}
+
+.time-cell, .schedule-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.hidden-hour {
+    display: none;
+}
+
+#toggle-hours-btn {
+    margin-right: 20px;
+    padding: 8px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#toggle-hours-btn:hover {
+    background-color: #0056b3;
+}
+
+.controls {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 /* Цвета для ячеек */
@@ -100,5 +131,7 @@
     top: 0;
     z-index: 3;
 }
+
+
 
 

@@ -15,7 +15,10 @@
     <div style="position: absolute; top: 10px; right: 10px;">
         {% if user.is_authenticated %}
             <span>Привет, {{ user.username }}!</span>
-            <a href="{% url 'logout' %}">Выйти</a>
+            <form action="{% url 'logout' %}" method="post" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" style="background: none; border: none; color: #007bff; text-decoration: underline; cursor: pointer;">Выйти</button>
+            </form>
         {% else %}
             <a href="{% url 'login' %}">Войти</a>
             <a href="{% url 'signup' %}">Регистрация</a>
@@ -27,233 +30,10 @@
         <button id="prev-week">←</button>
         <span id="current-week-range">18.08.2025 - 22.08.2025</span>
         <button id="next-week">→</button>
+        <button id="toggle-hours-btn">Показать все часы</button>
     </div>
-    <div class="shedule-container">
-        <div class="days-container">
-            <div class="time-column">
-                <!-- Пустая ячейка для выравнивания с заголовками дней -->
-                <div class="day-header"></div>
-                <!-- Ячейки времени -->
-                <div class="time-cell">0:00</div>
-                <div class="time-cell">1:00</div>
-                <div class="time-cell">2:00</div>
-                <div class="time-cell">3:00</div>
-                <div class="time-cell">4:00</div>
-                <div class="time-cell">5:00</div>
-                <div class="time-cell">6:00</div>
-                <div class="time-cell">7:00</div>
-                <div class="time-cell">8:00</div>
-                <div class="time-cell">9:00</div>
-                <div class="time-cell">10:00</div>
-                <div class="time-cell">11:00</div>
-                <div class="time-cell">12:00</div>
-                <div class="time-cell">13:00</div>
-                <div class="time-cell">14:00</div>
-                <div class="time-cell">15:00</div>
-                <div class="time-cell">16:00</div>
-                <div class="time-cell">17:00</div>
-                <div class="time-cell">18:00</div>
-                <div class="time-cell">19:00</div>
-                <div class="time-cell">20:00</div>
-                <div class="time-cell">21:00</div>
-                <div class="time-cell">22:00</div>
-                <div class="time-cell">23:00</div>
-            </div>
-            <div class="day-column">
-                <div class="day-header">Понедельник</div>
-                <div class="schedule-cell" data-day="mon" data-time="0" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="1" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="2" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="3" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="4" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="5" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="6" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="7" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="8" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="9" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="10" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="11" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="12" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="13" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="14" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="15" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="16" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="17" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="18" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="19" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="20" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="21" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="22" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="mon" data-time="23" data-date="2024-01-15"></div>
-            </div>
+    <div class="schedule-container" id="schedule-container">
 
-            <div class="day-column">
-                <div class="day-header">Вторник</div>
-                <div class="schedule-cell" data-day="tue" data-time="0" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="1" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="2" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="3" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="4" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="5" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="6" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="7" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="8" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="9" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="10" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="11" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="12" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="13" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="14" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="15" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="16" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="17" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="18" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="19" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="20" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="21" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="22" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="tue" data-time="23" data-date="2024-01-15"></div>
-            </div>
-
-            <div class="day-column">
-                <div class="day-header">Среда</div>
-                <div class="schedule-cell" data-day="wed" data-time="0" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="1" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="2" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="3" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="4" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="5" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="6" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="7" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="8" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="9" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="10" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="11" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="12" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="13" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="14" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="15" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="16" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="17" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="18" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="19" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="20" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="21" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="22" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="wed" data-time="23" data-date="2024-01-15"></div>
-            </div>
-            <div class="day-column">
-                <div class="day-header">Четверг</div>
-                <div class="schedule-cell" data-day="thu" data-time="0" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="1" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="2" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="3" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="4" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="5" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="6" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="7" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="8" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="9" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="10" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="11" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="12" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="13" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="14" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="15" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="16" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="17" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="18" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="19" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="20" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="21" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="22" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="thu" data-time="23" data-date="2024-01-15"></div>
-            </div>
-
-            <div class="day-column">
-                <div class="day-header">Пятница</div>
-                <div class="schedule-cell" data-day="fri" data-time="0" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="1" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="2" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="3" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="4" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="5" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="6" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="7" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="8" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="9" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="10" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="11" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="12" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="13" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="14" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="15" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="16" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="17" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="18" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="19" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="20" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="21" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="22" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="fri" data-time="23" data-date="2024-01-15"></div>
-            </div>
-
-            <div class="day-column">
-                <div class="day-header">Суббота</div>
-                <div class="schedule-cell" data-day="sat" data-time="0" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="1" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="2" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="3" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="4" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="5" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="6" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="7" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="8" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="9" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="10" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="11" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="12" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="13" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="14" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="15" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="16" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="18" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="19" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="20" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="21" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="22" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="23" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sat" data-time="24" data-date="2024-01-15"></div>
-            </div>
-
-            <div class="day-column">
-                <div class="day-header">Воскресенье</div>
-                <div class="schedule-cell" data-day="sun" data-time="0" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="1" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="2" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="3" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="4" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="5" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="6" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="7" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="8" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="9" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="10" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="11" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="12" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="13" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="14" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="15" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="16" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="17" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="18" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="19" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="20" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="21" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="22" data-date="2024-01-15"></div>
-                <div class="schedule-cell" data-day="sun" data-time="23" data-date="2024-01-15"></div>
-            </div>
-        </div>
     </div>
 
     <!-- Модальное окно -->
@@ -269,8 +49,15 @@
             <div class="color-option color-green" data-color="green" title="Зеленый"></div>
         </div>
 
-        <div style="margin-top: 10px;">
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="is-recurring"> регулярно
+            </label>
+        </div>
+
+        <div class="modal-buttons">
             <button id="modal-ok">OK</button>
+            <button id="delete-note">Удалить</button>
             <button id="modal-cancel">Отмена</button>
         </div>
     </div>

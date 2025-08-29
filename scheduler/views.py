@@ -11,9 +11,6 @@ from .models import ScheduleEvent
 from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
-
-from django.contrib.auth import logout
-
 @csrf_exempt
 @require_POST
 @login_required
@@ -24,6 +21,9 @@ def save_event(request):
         time_str=data['time']
         text=data.get('text','')
         color=data.get('color','')
+        is_recurring = data.get('is_recurring', False)
+
+        print(f"Received: date={date_str}, time={time_str}, text={text}, recurring={is_recurring}")
 
         from datetime import datetime
         date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -33,11 +33,42 @@ def save_event(request):
             user=request.user,
             date=date_obj,
             time=time_obj,
-            defaults={'text': text, 'color': color}
+            defaults={'text': text, 'color': color, 'is_recurring': is_recurring}
         )
+
+        # Если это регулярное занятие, создаем события на будущие недели
+        if is_recurring:
+            create_recurring_events(request.user, date_obj, time_obj, text, color)
         return JsonResponse({'status': 'success', 'created': created})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
+
+
+def create_recurring_events(user, start_date, time, text, color, weeks_ahead=52):
+    """Создает регулярные события на год вперед"""
+    from datetime import timedelta
+    try:
+        for week in range(1, weeks_ahead + 1):
+            event_date = start_date + timedelta(weeks=week)
+
+            # Проверяем, не существует ли уже такое событие
+            if not ScheduleEvent.objects.filter(
+                    user=user,
+                    date=event_date,
+                    time=time
+            ).exists():
+                ScheduleEvent.objects.create(
+                    user=user,
+                    date=event_date,
+                    time=time,
+                    text=text,
+                    color=color,
+                    is_recurring=True
+                )
+        print(f"Created recurring events for {weeks_ahead} weeks")
+    except Exception as e:
+        print(f"Error in create_recurring_events: {str(e)}")
+        raise e
 
 @csrf_exempt
 @login_required
@@ -63,10 +94,40 @@ def load_events(request):
                 'date':event.date.strftime('%Y-%m-%d'),
                 'time':time_str,
                 'text': event.text,
-                'color': event.color
+                'color': event.color,
+                'is_recurring': event.is_recurring
             })
         return  JsonResponse({'status': 'success', 'events': events_data})
 
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+
+
+@csrf_exempt
+@require_POST
+@login_required
+def delete_event(request):
+    try:
+        data = json.loads(request.body)
+        date = data.get('date')
+        time = data.get('time')
+        delete_recurring = data.get('delete_recurring', False)
+        if delete_recurring:
+            # Удаляем все будущие регулярные занятия
+            ScheduleEvent.objects.filter(
+                user=request.user,
+                time=time,
+                is_recurring=True,
+            ).delete()
+        else:
+            # Удаляем только конкретное занятие
+            event = ScheduleEvent.objects.get(
+                user=request.user,
+                date=date,
+                time=time
+            )
+            event.delete()
+        return JsonResponse({'status': 'success', 'message': 'Событие удалено'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
 

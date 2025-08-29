@@ -1,5 +1,5 @@
-import {initCurrentWeek,goToPrevWeek,goToNextWeek} from './schedule_controller.js';
-import {saveEvent,hideEventModal,showEventModal} from './add_note.js';
+import {initCurrentWeek,goToPrevWeek,goToNextWeek,toggleHoursVisibility} from './schedule_controller.js';
+import {saveEvent,deleteEvent,hideEventModal,showEventModal} from './add_note.js';
 
 document.addEventListener('DOMContentLoaded',
     function()
@@ -9,9 +9,15 @@ document.addEventListener('DOMContentLoaded',
        document.getElementById('prev-week').addEventListener('click', goToPrevWeek);
        document.getElementById('next-week').addEventListener('click', goToNextWeek);
 
+       // Скрытие\показ ночных часов
+       document.getElementById('toggle-hours-btn').addEventListener('click', toggleHoursVisibility);
+
+
        // Обработчики для модального окна
         document.getElementById('modal-ok').addEventListener('click', saveEvent);
         document.getElementById('modal-cancel').addEventListener('click', hideEventModal);
+        document.getElementById('delete-note').addEventListener('click', deleteEvent);
+
 
         // Закрытие по клику на затемнение
         document.getElementById('modal-overlay').addEventListener('click', hideEventModal);
@@ -21,13 +27,6 @@ document.addEventListener('DOMContentLoaded',
             if (e.key === 'Escape') {
                 hideEventModal();
             }
-        });
-
-        // Обработчики кликов по ячейкам
-        document.querySelectorAll('.schedule-cell').forEach(cell => {
-            cell.addEventListener('click', function() {
-                showEventModal(this);
-            });
         });
     }
 );
