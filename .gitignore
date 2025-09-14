@@ -25,3 +25,21 @@ Thumbs.db
 .env
 *.env
 .env.*
+
+# Базы данных
+*.sqlite3
+*.db
+*.sqlite
+db.sqlite3
+
+# Файлы PostgreSQL (на всякий случай)
+/postgresql_data/
+/pgdata/
+
+# Резервные копии баз данных
+*.backup
+*.dump
+*.sql
+
+# Логи PostgreSQL
+*.log
