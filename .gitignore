@@ -43,3 +43,5 @@ db.sqlite3
 
 # Логи PostgreSQL
 *.log
+
+/staticfiles/

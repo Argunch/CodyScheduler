@@ -133,5 +133,40 @@
 }
 
 
+/* 📱 Адаптив для мобильных */
+@media (max-width: 768px) {
+    .schedule-cell,
+    .time-cell {
+        min-height: 50px; /* вместо 30px */
+        font-size: 14px;  /* покрупнее текст */
+        padding: 5px;
+    }
+
+    .day-header,
+    .time-header {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    #toggle-hours-btn,
+    .week-navigation button {
+        padding: 10px 18px;
+        font-size: 14px;
+        border-radius: 6px;
+    }
+
+    .week-navigation {
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+    }
+
+    .day-column {
+        min-width: 160px; /* чтобы не сплющивались */
+    }
+}
+
+
+
 
 
