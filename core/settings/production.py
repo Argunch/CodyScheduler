@@ -4,14 +4,16 @@ Production settings for core project.
 from .base import *
 import os
 
+from dotenv import load_dotenv
+load_dotenv('/var/www/CodyScheduler/.env')  # путь к твоему .env файлу
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
 ALLOWED_HOSTS = [
     'scheduler.mrrob.ru',
     'www.scheduler.mrrob.ru',
-    'localhost',
-    '127.0.0.1'
+    '81.90.181.120'
 ]
 
 # Database
