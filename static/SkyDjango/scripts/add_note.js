@@ -47,11 +47,14 @@ function showEventModal(cell, eventData=null)
             const colorElement = modal.querySelector(`[data-color="${eventData.color}"]`);
             if (colorElement) {
                 colorElement.classList.add('selected');
+                // Восстановление цвета - сохраняем исходный цвет события
+                selectedColor = eventData.color || 'blue'; // Важно: сохраняем исходный цвет
             }
         }
 
-        // Восстановление продолжительности
-        document.getElementById('event-duration').value = eventData.duration || '1';
+        // Восстановление продолжительности (конвертируем в формат времени)
+        const durationHours = eventData.duration || 1;
+        document.getElementById('event-duration').value = decimalToTime(durationHours);
 
         // Восстановление регулярности
         const isRecurring = eventData.isRecurring || false;
@@ -77,8 +80,8 @@ function showEventModal(cell, eventData=null)
             blueElement.classList.add('selected');
         }
 
-         // Продолжительность по умолчанию
-        document.getElementById('event-duration').value = '1';
+        // ПОЛУЧАЕМ ПОСЛЕДНЮЮ ПРОДОЛЖИТЕЛЬНОСТЬ ИЗ localStorage
+        document.getElementById('event-duration').value = getLastDuration();
 
         // Сброс регулярности
         document.getElementById('is-recurring').checked = false;
@@ -92,6 +95,66 @@ function showEventModal(cell, eventData=null)
 
     // Фокусируемся на текстовом поле
     document.getElementById('event-text').focus();
+}
+
+// Функция для преобразования времени в формате "чч:мм" в десятичные часы
+function timeToDecimal(timeStr) {
+    if (!timeStr) return 1.0;
+
+    // Если введено просто число, считаем это часами
+    if (!timeStr.includes(':')) {
+        return parseFloat(timeStr) || 1.0;
+    }
+
+    const [hours, minutes] = timeStr.split(':').map(part => parseInt(part) || 0);
+    return hours + (minutes / 60);
+}
+
+// Функция для преобразования десятичных часов в формат "чч:мм"
+function decimalToTime(decimalHours) {
+    const hours = Math.floor(decimalHours);
+    const minutes = Math.round((decimalHours - hours) * 60);
+
+    // Обработка случая, когда minutes = 60
+    if (minutes === 60) {
+        return `${hours + 1}:00`;
+    }
+
+    return `${hours}:${minutes.toString().padStart(2, '0')}`;
+}
+
+// Функция для валидации ввода времени
+function validateTimeInput(input) {
+    const value = input.value;
+
+    // Разрешаем пустое значение для редактирования
+    if (value === '') return true;
+
+    // Проверяем формат: цифры и двоеточие
+    if (!/^\d*:?\d*$/.test(value)) {
+        input.setCustomValidity('Используйте формат часы:минуты (например: 1:30)');
+        return false;
+    }
+
+    // Если есть двоеточие, проверяем части
+    if (value.includes(':')) {
+        const [hoursStr, minutesStr] = value.split(':');
+        const hours = parseInt(hoursStr) || 0;
+        const minutes = parseInt(minutesStr) || 0;
+
+        if (minutes > 59) {
+            input.setCustomValidity('Минуты не могут быть больше 59');
+            return false;
+        }
+
+        if (hours > 24) {
+            input.setCustomValidity('Часы не могут быть больше 24');
+            return false;
+        }
+    }
+
+    input.setCustomValidity('');
+    return true;
 }
 
 // Функция для расчета позиции overlay
@@ -132,6 +195,7 @@ function createEventOverlay(cell, text, color, durationHours, isRecurring = fals
     overlay.style.width = `${position.width}px`;
     overlay.style.height = `${position.height}px`;
     overlay.textContent = text;
+
     overlay.setAttribute('data-time', position.time);
     overlay.setAttribute('data-date', position.date);
     overlay.setAttribute('data-duration', durationHours);
@@ -371,7 +435,12 @@ function saveEvent() {
     if (currentCell) {
         const eventText = document.getElementById('event-text').value;
         const isRecurring = document.getElementById('is-recurring').checked;
-        const duration = parseFloat(document.getElementById('event-duration').value) || 1;
+
+        const durationInput = document.getElementById('event-duration').value;
+        const duration = timeToDecimal(durationInput) || 1;
+
+        // СОХРАНЯЕМ ПОСЛЕДНЮЮ ПРОДОЛЖИТЕЛЬНОСТЬ
+        saveLastDuration(durationInput);
 
         // Сохраняем данные в ячейку (для хранения)
         currentCell.setAttribute('data-duration', duration);
@@ -452,5 +521,15 @@ document.querySelectorAll('.color-option').forEach(option => {
         selectedColor = this.getAttribute('data-color');
     });
 });
+
+// Сохранение последней продолжительности
+function saveLastDuration(duration) {
+    localStorage.setItem('lastDuration', duration);
+}
+
+// Получение последней продолжительности
+function getLastDuration() {
+    return localStorage.getItem('lastDuration') || '1:00'; // Значение по умолчанию
+}
 
 export {saveEvent,deleteEvent,hideEventModal,showEventModal,loadEventsForWeek,updateOverlayPositions};

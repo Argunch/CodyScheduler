@@ -72,7 +72,7 @@
     flex-direction: column;
     min-width: 60px;
     left: 0;
-    z-index:2;
+    z-index:6;
 }
 
 .day-header {
@@ -84,7 +84,7 @@
     font-weight: bold;
     min-height: 20px;
     top: 0;
-    z-index: 1;
+    z-index: 8;
 }
 
 
