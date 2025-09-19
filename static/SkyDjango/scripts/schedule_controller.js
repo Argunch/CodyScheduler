@@ -1,4 +1,4 @@
-import { loadEventsForWeek, showEventModal } from './add_note.js';
+import {loadEventsForWeek,showEventModal} from './add_note.js';
 
 const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 const DAY_SHORT_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -64,7 +64,7 @@ function createTimeColumn() {
     const timeColumn = document.createElement('div');
     timeColumn.className = 'time-column';
 
-    timeColumn.appendChild(createElement('div', 'day-header', ''));
+    timeColumn.appendChild(createElement('div', 'time-header', ''));
 
     for (let hour = 0; hour < 24; hour++) {
     // Скрываем ночные часы по умолчанию

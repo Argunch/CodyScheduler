@@ -1,29 +1,111 @@
+/* Контейнер для горизонтального скролла */
+.schedule-wrapper {
+    overflow-x: auto;
+    position: relative;
+    max-height: 80vh; /* Ограничиваем высоту для прокрутки */
+}
+
+/*overlay*/
+.events-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Клики проходят сквозь overlay */
+    z-index: 5;
+}
+
+.event-item {
+    position: absolute;
+    background: rgba(52, 152, 219, 0.8);
+    border: 2px solid #2980b9;
+    border-radius: 6px;
+    padding: 8px;
+    color: white;
+    font-size: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    pointer-events: auto; /* Для кликов на самом событии */
+    box-sizing: border-box;
+    z-index: 6;
+    transition: opacity 0.2s;
+}
+
+.event-item:hover {
+    opacity: 0.9;
+    filter: brightness(1.1);
+}
+
+/* Цвета событий */
+.event-item.blue { background: rgba(52, 152, 219, 0.8); border-color: #2980b9; }
+.event-item.yellow { background: rgba(241, 196, 15, 0.8); border-color: #f39c12; color: #333; }
+.event-item.green { background: rgba(46, 204, 113, 0.8); border-color: #27ae60; }
+
+/* Для коротких событий */
+.event-item.short {
+    font-size: 10px;
+    padding: 4px 6px;
+}
+
+
+
+/*                  */
+
 .schedule-container {
     display: flex;
     flex-direction: column;
-    width: 100%;
+    width: max-content;
+    min-width:100%;
     border: 1px solid #ddd;
+
 }
 
 .days-container {
     display: flex;
+    position:relative;
     flex-grow: 1;
 }
 
-
 .time-column {
-    display: flex;
+    position:sticky;
     flex-direction: column;
     min-width: 60px;
-    position:sticky;
     left: 0;
     z-index:2;
+}
+
+.day-header {
+    position: sticky;
+    padding: 10px;
+    text-align: center;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    font-weight: bold;
+    min-height: 20px;
+    top: 0;
+    z-index: 1;
+}
+
+
+.time-header {
+    padding: 10px;
+    text-align: center;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    font-weight: bold;
+    min-height: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 3;
 }
 
 .day-column {
     flex: 1;
     min-width: 120px;
 }
+
+
 
 .time-cell {
     min-height: 30px;
@@ -40,6 +122,8 @@
 
 .schedule-cell {
     min-height: 30px;
+    max-height: 30px;
+    font-size: 10px;
     border: 1px solid #ddd;
     overflow: hidden;
     background-color: white;
@@ -105,36 +189,12 @@
 }
 
 
-.day-header {
-    padding: 10px;
-    text-align: center;
-    background-color: #f0f0f0;
-    border: 1px solid #ddd;
-    font-weight: bold;
-    position: sticky;
-    min-height: 20px;
-    top: 0;
-    z-index: 1;
-}
-
-
-
-
-
-.time-header {
-    padding: 10px;
-    text-align: center;
-    background-color: #f0f0f0;
-    border: 1px solid #ddd;
-    font-weight: bold;
-    position: sticky;
-    top: 0;
-    z-index: 3;
-}
-
-
 /* 📱 Адаптив для мобильных */
 @media (max-width: 768px) {
+    .schedule-wrapper {
+        -webkit-overflow-scrolling: touch;
+    }
+
     .schedule-cell,
     .time-cell {
         min-height: 50px; /* вместо 30px */

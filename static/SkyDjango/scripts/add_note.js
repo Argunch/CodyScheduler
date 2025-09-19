@@ -5,7 +5,8 @@ const API_BASE_URL='/api';
 let currentCell=null;
 let selectedColor = null;
 
-function showEventModal(cell)
+
+function showEventModal(cell, eventData=null)
 {
     currentCell=cell;
     selectedColor = null;
@@ -24,25 +25,64 @@ function showEventModal(cell)
         'sun': 'Воскресенье'
     };
 
+    // СБРОС ВСЕХ ЦВЕТОВЫХ ОПЦИЙ ПЕРЕД ОТКРЫТИЕМ МОДАЛЬНОГО ОКНА
+    document.querySelectorAll('.color-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+
     // Показываем информацию о времени
     document.getElementById('modal-time-info').textContent =
         `${dayNames[day]}, ${date} ${time}:00`;
 
-    // Заполняем текстовое поле текущим текстом ячейки
-    document.getElementById('event-text').value = cell.textContent;
+    // === РАЗДЕЛЕНИЕ ЛОГИКИ ===
+    if (eventData) {
+        // Редактирование существующего события
+        // Заполняем текстовое поле текущим текстом ячейки
+        document.getElementById('event-text').value = eventData.text || '';
 
-    // Сброс выбора цвета
-    document.querySelectorAll('.color-option').forEach(option => {
-        option.classList.remove('selected');
-    });
+        // Восстановление цвета
+        if (eventData.color) {
+            // Ищем ТОЛЬКО внутри модального окна
+            const modal = document.getElementById('event-modal');
+            const colorElement = modal.querySelector(`[data-color="${eventData.color}"]`);
+            if (colorElement) {
+                colorElement.classList.add('selected');
+            }
+        }
 
-    // Восстановление ранее выбранного цвета
-    const existingColor = cell.getAttribute('data-color');
-    if (existingColor) {
-        selectedColor = existingColor;
-        document.querySelector(`[data-color="${existingColor}"]`).classList.add('selected');
+        // Восстановление продолжительности
+        document.getElementById('event-duration').value = eventData.duration || '1';
+
+        // Восстановление регулярности
+        const isRecurring = eventData.isRecurring || false;
+        document.getElementById('is-recurring').checked = isRecurring;
+
     }
+    else
+    {
+        // Создание нового события
+        document.getElementById('event-text').value = '';
 
+        // Сброс цвета
+        document.querySelectorAll('.color-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+
+        // Устанавливаем синий цвет по умолчанию
+        selectedColor = 'blue';
+        // Ищем ТОЛЬКО внутри модального окна
+        const modal = document.getElementById('event-modal');
+        const blueElement = modal.querySelector('[data-color="blue"]');
+        if (blueElement) {
+            blueElement.classList.add('selected');
+        }
+
+         // Продолжительность по умолчанию
+        document.getElementById('event-duration').value = '1';
+
+        // Сброс регулярности
+        document.getElementById('is-recurring').checked = false;
+    }
     // Показываем модальное окно и затемнение
     document.getElementById('event-modal').style.display = 'block';
     document.getElementById('modal-overlay').style.display = 'block';
@@ -53,6 +93,123 @@ function showEventModal(cell)
     // Фокусируемся на текстовом поле
     document.getElementById('event-text').focus();
 }
+
+// Функция для расчета позиции overlay
+function calculateEventPosition(cell, durationHours = 1) {
+    const scheduleContainer = document.querySelector('.schedule-container');
+    const timeColumn = document.querySelector('.time-column');
+    const daysContainer = document.querySelector('.days-container');
+
+    // Получаем позицию ячейки относительно расписания
+    const cellRect = cell.getBoundingClientRect();
+    const scheduleRect = scheduleContainer.getBoundingClientRect();
+    const timeColumnWidth = timeColumn.offsetWidth;
+
+    // Вычисляем позицию
+    const top = cellRect.top - scheduleRect.top + scheduleContainer.scrollTop;
+    const left = cellRect.left - scheduleRect.left;
+    const width = cell.offsetWidth;
+    const height = cell.offsetHeight * durationHours;
+
+    return {
+        top: top,
+        left: left,
+        width: width*0.9,
+        height: height,
+        time: parseInt(cell.getAttribute('data-time')),
+        date: cell.getAttribute('data-date')
+    };
+}
+
+// Создание overlay события
+function createEventOverlay(cell, text, color, durationHours, isRecurring = false) {
+    const position = calculateEventPosition(cell, durationHours);
+
+    const overlay = document.createElement('div');
+    overlay.className = `event-item ${color || ''}`;
+    overlay.style.top = `${position.top}px`;
+    overlay.style.left = `${position.left}px`;
+    overlay.style.width = `${position.width}px`;
+    overlay.style.height = `${position.height}px`;
+    overlay.textContent = text;
+    overlay.setAttribute('data-time', position.time);
+    overlay.setAttribute('data-date', position.date);
+    overlay.setAttribute('data-duration', durationHours);
+    overlay.setAttribute('data-color', color);
+    overlay.setAttribute('data-recurring', isRecurring); // Добавьте это
+
+    // Для коротких событий уменьшаем шрифт
+    if (durationHours < 1.5) {
+        overlay.classList.add('short');
+    }
+
+    overlay.addEventListener('click', function(e) {
+        e.stopPropagation();
+
+        // Создаем объект с данными события
+        const eventData = {
+            date: this.getAttribute('data-date'),
+            time: this.getAttribute('data-time'),
+            text: this.textContent,
+            color: this.getAttribute('data-color'),
+            duration: this.getAttribute('data-duration'),
+            isRecurring: this.getAttribute('data-recurring') === 'true'
+        };
+        // Находим соответствующую ячейку
+        const correspondingCell = document.querySelector(
+            `[data-date="${eventData.date}"][data-time="${eventData.time}"]`
+        );
+        if (cell) {
+            showEventModal(correspondingCell, eventData); // С eventData - редактирование
+        }
+    });
+
+    // ВАЖНО: Добавляем в отдельный контейнер, а не в ячейку!
+    document.getElementById('events-overlay').appendChild(overlay);
+    return overlay;
+}
+
+function updateOverlayPositions() {
+    const events = document.querySelectorAll('.event-item');
+    events.forEach(event => {
+        const time = event.getAttribute('data-time');
+        const date = event.getAttribute('data-date');
+        const duration = parseFloat(event.getAttribute('data-duration') || '1');
+
+        const cell = document.querySelector(
+            `[data-date="${date}"][data-time="${time}"]`
+        );
+
+        if (cell) {
+            const position = calculateEventPosition(cell, duration);
+            if (position) {
+                event.style.top = `${position.top}px`;
+                event.style.left = `${position.left}px`;
+                event.style.width = `${position.width}px`;
+                event.style.height = `${position.height}px`;
+            }
+        }
+    });
+}
+
+// Удаление overlay
+function removeEventOverlay(cell) {
+    const time = cell.getAttribute('data-time');
+    const date = cell.getAttribute('data-date');
+
+    // Нормализуем формат времени для поиска
+    const normalizedTime = time.padStart(2, '0') + ':00:00';
+
+    const overlay = document.querySelector(
+        `.event-item[data-date="${date}"][data-time="${time}"],
+         .event-item[data-date="${date}"][data-time="${normalizedTime}"]`
+    );
+
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
 
 // Функция скрытия модального окна
 function hideEventModal() {
@@ -82,9 +239,11 @@ async function deleteEventFromServer(cell) {
     let time = cell.getAttribute('data-time');
     const isRecurring = document.getElementById('is-recurring')?.checked;
 
+    // Нормализуем время для корректного сравнения
     // Преобразуем время в правильный формат HH:MM:SS
+    let normalizedTime = time;
     if (time && !time.includes(':')) {
-        time = time.padStart(2, '0') + ':00:00'; // "7" → "07:00:00"
+        normalizedTime = time.padStart(2, '0') + ':00:00';
     }
 
     try {
@@ -96,7 +255,7 @@ async function deleteEventFromServer(cell) {
             },
             body: JSON.stringify({
                 date: date,
-                time: time,
+                time: normalizedTime,
                 delete_recurring: isRecurring
             })
         });
@@ -104,6 +263,8 @@ async function deleteEventFromServer(cell) {
         const data = await response.json();
         if (data.status !== 'success') {
             console.error('Ошибка удаления:', data.message);
+        } else {
+            await loadEventsForWeek();
         }
     } catch (error) {
         console.error('Ошибка сети:', error);
@@ -135,10 +296,11 @@ function toggleRecurringDeleteOption() {
 }
 
 
-async function saveEventToServer(cell,text,color,isRecurring=false)
+async function saveEventToServer(cell,text,color,isRecurring=false, duration = 1.0)
 {
     const date=cell.getAttribute('data-date');
     const time=cell.getAttribute('data-time');
+
     try
     {
         const response=await fetch(`${API_BASE_URL}/save-event/`, {
@@ -151,8 +313,9 @@ async function saveEventToServer(cell,text,color,isRecurring=false)
                 date: date,
                 time: time,
                 text: text,
-                color: color,
-                is_recurring: isRecurring  // Добавляем флаг регулярности
+                color: color || 'blue',
+                is_recurring: isRecurring,  // Добавляем флаг регулярности
+                duration: duration
             })
         });
 
@@ -208,22 +371,19 @@ function saveEvent() {
     if (currentCell) {
         const eventText = document.getElementById('event-text').value;
         const isRecurring = document.getElementById('is-recurring').checked;
-        currentCell.textContent = eventText;
+        const duration = parseFloat(document.getElementById('event-duration').value) || 1;
 
-        // Устанавливаем цвет
-        if (selectedColor) {
-            // Убираем предыдущие классы цветов
-            currentCell.classList.remove('blue', 'yellow', 'green');
-            // Добавляем выбранный цвет
-            currentCell.classList.add(selectedColor);
-            currentCell.setAttribute('data-color', selectedColor);
-        } else {
-            // Если цвет не выбран, убираем цвет
-            currentCell.classList.remove('blue', 'yellow', 'green');
-            currentCell.removeAttribute('data-color');
-        }
-        // Сохраняем на сервер
-        saveEventToServer(currentCell, eventText, selectedColor, isRecurring);
+        // Сохраняем данные в ячейку (для хранения)
+        currentCell.setAttribute('data-duration', duration);
+        currentCell.setAttribute('data-text', eventText);
+        currentCell.setAttribute('data-color', selectedColor || 'blue');
+
+        // Удаляем старый overlay если есть
+        removeEventOverlay(currentCell);
+
+        // Создаем новый overlay
+        createEventOverlay(currentCell, eventText, selectedColor, duration, isRecurring);
+        saveEventToServer(currentCell, eventText, selectedColor, isRecurring, duration);
     }
 
 
@@ -248,7 +408,10 @@ async function loadEventsForWeek()
     const dateFrom = currentWeek.days[0].date;
     const dateTo = currentWeek.days[6].date;
 
-    clearAllCells();
+//    clearAllCells();
+
+    // Очищаем overlay
+    document.getElementById('events-overlay').innerHTML = '';
 
     // Загружаем с сервера
     const serverEvents = await loadEventsFromServer(dateFrom, dateTo);
@@ -259,17 +422,22 @@ async function loadEventsForWeek()
         );
 
         if (cell) {
-            cell.textContent = event.text;
-            if (event.color) {
-                cell.classList.remove('blue', 'yellow', 'green');
-                cell.classList.add(event.color);
-                cell.setAttribute('data-color', event.color);
-            }
+             // Сохраняем данные в ячейке
+            cell.setAttribute('data-text', event.text);
+            cell.setAttribute('data-color', event.color || '');
+            cell.setAttribute('data-duration', event.duration || '1');
+
+            // Создаем overlay
+            createEventOverlay(
+                cell,
+                event.text,
+                event.color,
+                parseFloat(event.duration || 1),
+                event.is_recurring || false
+            );
         }
     });
 }
-
-
 
 // Обработчик выбора цвета
 document.querySelectorAll('.color-option').forEach(option => {
@@ -285,4 +453,4 @@ document.querySelectorAll('.color-option').forEach(option => {
     });
 });
 
-export {saveEvent,deleteEvent,hideEventModal,showEventModal,loadEventsForWeek};
+export {saveEvent,deleteEvent,hideEventModal,showEventModal,loadEventsForWeek,updateOverlayPositions};
