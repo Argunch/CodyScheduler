@@ -1,0 +1,30 @@
+/* Линия на всю неделю (тонкая) */
+.current-time-week-line {
+    position: absolute;
+    height: 1.5px;
+    background-color: #A9A9A9;
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0.7;
+    left: 60px; /* Ширина time-column */
+    width: calc(100% - 60px); /* Минус ширина time-column */
+}
+
+/* Линия на текущий день (толстая) */
+.current-time-day-line {
+    position: absolute;
+    height: 1.5px;
+    background-color: #00BFFF;
+    z-index: 5;
+    pointer-events: none;
+    box-shadow: 0 0 6px rgba(255, 0, 0, 0.4);
+}
+
+/* Общие стили для линий */
+.current-time-line {
+    position: absolute;
+    pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+

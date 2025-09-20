@@ -52,6 +52,20 @@ function showEventModal(cell, eventData=null)
             }
         }
 
+        // Извлекаем минуты из времени начала
+        let minutes = 0;
+        if (eventData.time) {
+            // Проверяем разные форматы времени
+            if (eventData.time.includes(':')) {
+                const timeParts = eventData.time.split(':');
+                minutes = parseInt(timeParts[1]) || 0;
+            } else {
+                // Если время пришло в старом формате (только часы)
+                minutes = 0;
+            }
+        }
+        document.getElementById('event-start-minutes').value = minutes;
+
         // Восстановление продолжительности (конвертируем в формат времени)
         const durationHours = eventData.duration || 1;
         document.getElementById('event-duration').value = decimalToTime(durationHours);
@@ -65,6 +79,9 @@ function showEventModal(cell, eventData=null)
     {
         // Создание нового события
         document.getElementById('event-text').value = '';
+
+        // Устанавливаем 0 минут по умолчанию
+        document.getElementById('event-start-minutes').value = 0;
 
         // Сброс цвета
         document.querySelectorAll('.color-option').forEach(opt => {
@@ -99,15 +116,16 @@ function showEventModal(cell, eventData=null)
 
 // Функция для преобразования времени в формате "чч:мм" в десятичные часы
 function timeToDecimal(timeStr) {
-    if (!timeStr) return 1.0;
+    if (!timeStr) return 1;
 
-    // Если введено просто число, считаем это часами
-    if (!timeStr.includes(':')) {
-        return parseFloat(timeStr) || 1.0;
+    // Если время в формате "1:30" или "2:45"
+    if (timeStr.includes(':')) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours + (minutes / 60);
     }
 
-    const [hours, minutes] = timeStr.split(':').map(part => parseInt(part) || 0);
-    return hours + (minutes / 60);
+    // Если только часы "1" или "2"
+    return parseFloat(timeStr) || 1;
 }
 
 // Функция для преобразования десятичных часов в формат "чч:мм"
@@ -158,7 +176,7 @@ function validateTimeInput(input) {
 }
 
 // Функция для расчета позиции overlay
-function calculateEventPosition(cell, durationHours = 1) {
+function calculateEventPosition(cell, durationHours = 1, startMinutes = 0) {
     const scheduleContainer = document.querySelector('.schedule-container');
     const timeColumn = document.querySelector('.time-column');
     const daysContainer = document.querySelector('.days-container');
@@ -168,8 +186,9 @@ function calculateEventPosition(cell, durationHours = 1) {
     const scheduleRect = scheduleContainer.getBoundingClientRect();
     const timeColumnWidth = timeColumn.offsetWidth;
 
-    // Вычисляем позицию
-    const top = cellRect.top - scheduleRect.top + scheduleContainer.scrollTop;
+    // Вычисляем позицию с учетом минут
+    const top = cellRect.top - scheduleRect.top + scheduleContainer.scrollTop +
+               (cellRect.height / 60) * startMinutes;
     const left = cellRect.left - scheduleRect.left;
     const width = cell.offsetWidth;
     const height = cell.offsetHeight * durationHours;
@@ -185,8 +204,8 @@ function calculateEventPosition(cell, durationHours = 1) {
 }
 
 // Создание overlay события
-function createEventOverlay(cell, text, color, durationHours, isRecurring = false) {
-    const position = calculateEventPosition(cell, durationHours);
+function createEventOverlay(cell, text, color, durationHours, startMinutes = 0, isRecurring = false) {
+    const position = calculateEventPosition(cell, durationHours, startMinutes);
 
     const overlay = document.createElement('div');
     overlay.className = `event-item ${color || ''}`;
@@ -197,10 +216,11 @@ function createEventOverlay(cell, text, color, durationHours, isRecurring = fals
     overlay.textContent = text;
 
     overlay.setAttribute('data-time', position.time);
+    overlay.setAttribute('data-start-minutes', startMinutes);
     overlay.setAttribute('data-date', position.date);
     overlay.setAttribute('data-duration', durationHours);
     overlay.setAttribute('data-color', color);
-    overlay.setAttribute('data-recurring', isRecurring); // Добавьте это
+    overlay.setAttribute('data-recurring', isRecurring);
 
     // Для коротких событий уменьшаем шрифт
     if (durationHours < 1.5) {
@@ -210,25 +230,24 @@ function createEventOverlay(cell, text, color, durationHours, isRecurring = fals
     overlay.addEventListener('click', function(e) {
         e.stopPropagation();
 
-        // Создаем объект с данными события
         const eventData = {
             date: this.getAttribute('data-date'),
             time: this.getAttribute('data-time'),
             text: this.textContent,
             color: this.getAttribute('data-color'),
             duration: this.getAttribute('data-duration'),
+            startMinutes: parseInt(this.getAttribute('data-start-minutes') || 0),
             isRecurring: this.getAttribute('data-recurring') === 'true'
         };
-        // Находим соответствующую ячейку
+
         const correspondingCell = document.querySelector(
             `[data-date="${eventData.date}"][data-time="${eventData.time}"]`
         );
-        if (cell) {
-            showEventModal(correspondingCell, eventData); // С eventData - редактирование
+        if (correspondingCell) {
+            showEventModal(correspondingCell, eventData);
         }
     });
 
-    // ВАЖНО: Добавляем в отдельный контейнер, а не в ячейку!
     document.getElementById('events-overlay').appendChild(overlay);
     return overlay;
 }
@@ -239,13 +258,14 @@ function updateOverlayPositions() {
         const time = event.getAttribute('data-time');
         const date = event.getAttribute('data-date');
         const duration = parseFloat(event.getAttribute('data-duration') || '1');
+        const startMinutes = parseInt(event.getAttribute('data-start-minutes') || '0');
 
         const cell = document.querySelector(
             `[data-date="${date}"][data-time="${time}"]`
         );
 
         if (cell) {
-            const position = calculateEventPosition(cell, duration);
+            const position = calculateEventPosition(cell, duration, startMinutes);
             if (position) {
                 event.style.top = `${position.top}px`;
                 event.style.left = `${position.left}px`;
@@ -255,18 +275,16 @@ function updateOverlayPositions() {
         }
     });
 }
-
 // Удаление overlay
 function removeEventOverlay(cell) {
     const time = cell.getAttribute('data-time');
     const date = cell.getAttribute('data-date');
 
-    // Нормализуем формат времени для поиска
-    const normalizedTime = time.padStart(2, '0') + ':00:00';
+    const startMinutes = cell.getAttribute('data-start-minutes') || '0';
 
+    // Находим overlay с точным совпадением времени, даты и минут начала
     const overlay = document.querySelector(
-        `.event-item[data-date="${date}"][data-time="${time}"],
-         .event-item[data-date="${date}"][data-time="${normalizedTime}"]`
+        `.event-item[data-date="${date}"][data-time="${time}"][data-start-minutes="${startMinutes}"]`
     );
 
     if (overlay) {
@@ -300,15 +318,12 @@ async function deleteEvent()
 // Функция отправки запроса на удаление на сервер
 async function deleteEventFromServer(cell) {
     const date = cell.getAttribute('data-date');
-    let time = cell.getAttribute('data-time');
+    const hour = parseInt(cell.getAttribute('data-time'));
+    const minutes = parseInt(cell.getAttribute('data-start-minutes') || '0');
     const isRecurring = document.getElementById('is-recurring')?.checked;
 
-    // Нормализуем время для корректного сравнения
-    // Преобразуем время в правильный формат HH:MM:SS
-    let normalizedTime = time;
-    if (time && !time.includes(':')) {
-        normalizedTime = time.padStart(2, '0') + ':00:00';
-    }
+    // Формируем точное время в формате HH:MM:SS
+    const normalizedTime = `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
 
     try {
         const response = await fetch(`${API_BASE_URL}/delete-event/`, {
@@ -360,10 +375,12 @@ function toggleRecurringDeleteOption() {
 }
 
 
-async function saveEventToServer(cell,text,color,isRecurring=false, duration = 1.0)
+async function saveEventToServer(cell,text,color,isRecurring=false, duration = 1.0, timeString)
 {
     const date=cell.getAttribute('data-date');
-    const time=cell.getAttribute('data-time');
+    const cellHour = parseInt(cell.getAttribute('data-time'));
+
+    console.log('Отправляем время на сервер:', timeString); // ← Добавьте это
 
     try
     {
@@ -375,7 +392,7 @@ async function saveEventToServer(cell,text,color,isRecurring=false, duration = 1
             },
             body: JSON.stringify({
                 date: date,
-                time: time,
+                time: timeString,
                 text: text,
                 color: color || 'blue',
                 is_recurring: isRecurring,  // Добавляем флаг регулярности
@@ -436,8 +453,19 @@ function saveEvent() {
         const eventText = document.getElementById('event-text').value;
         const isRecurring = document.getElementById('is-recurring').checked;
 
+        // Получаем минуты из input (только число)
+        const startMinutesInput = document.getElementById('event-start-minutes');
+        const startMinutes = parseInt(startMinutesInput.value) || 0;
+        console.log("startMinutes", startMinutes);
+
         const durationInput = document.getElementById('event-duration').value;
         const duration = timeToDecimal(durationInput) || 1;
+
+        // Валидация минут
+        if (startMinutes < 0 || startMinutes > 55) {
+            alert('Минуты должны быть от 0 до 55');
+            return;
+        }
 
         // СОХРАНЯЕМ ПОСЛЕДНЮЮ ПРОДОЛЖИТЕЛЬНОСТЬ
         saveLastDuration(durationInput);
@@ -446,13 +474,19 @@ function saveEvent() {
         currentCell.setAttribute('data-duration', duration);
         currentCell.setAttribute('data-text', eventText);
         currentCell.setAttribute('data-color', selectedColor || 'blue');
+        currentCell.setAttribute('data-start-minutes', startMinutes);
 
         // Удаляем старый overlay если есть
         removeEventOverlay(currentCell);
 
         // Создаем новый overlay
-        createEventOverlay(currentCell, eventText, selectedColor, duration, isRecurring);
-        saveEventToServer(currentCell, eventText, selectedColor, isRecurring, duration);
+        createEventOverlay(currentCell, eventText, selectedColor, duration, startMinutes, isRecurring);
+
+        // Формируем время для сервера (часы из ячейки + минуты из поля)
+        const cellHour = parseInt(currentCell.getAttribute('data-time'));
+        const timeString = `${cellHour.toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')}:00`;
+
+        saveEventToServer(currentCell, eventText, selectedColor, isRecurring, duration, timeString);
     }
 
 
@@ -467,43 +501,54 @@ function clearAllCells() {
     });
 }
 
-async function loadEventsForWeek()
-{
-    if (!currentWeek.days.length)
-    {
+async function loadEventsForWeek() {
+    if (!currentWeek.days.length) {
         console.log('currentWeek.days пустой');
         return;
     }
+
     const dateFrom = currentWeek.days[0].date;
     const dateTo = currentWeek.days[6].date;
-
-//    clearAllCells();
 
     // Очищаем overlay
     document.getElementById('events-overlay').innerHTML = '';
 
     // Загружаем с сервера
     const serverEvents = await loadEventsFromServer(dateFrom, dateTo);
+
     // Применяем события к ячейкам
     serverEvents.forEach(event => {
+        console.log("Загружаем событие:", event);
+
+        const [hours, minutes] = event.time.split(':');
+        const hourInt = parseInt(hours, 10);
+        const minuteInt = parseInt(minutes || '0', 10);
+
+        // Ячейка ищется только по часу
         const cell = document.querySelector(
-            `[data-date="${event.date}"][data-time="${event.time}"]`
+            `[data-date="${event.date}"][data-time="${hourInt}"]`
         );
 
         if (cell) {
-             // Сохраняем данные в ячейке
+            console.log(`Нашли ячейку: дата=${event.date}, час=${hourInt}, мин=${minuteInt}`, cell);
+
+            // Сохраняем данные в ячейке
             cell.setAttribute('data-text', event.text);
             cell.setAttribute('data-color', event.color || '');
             cell.setAttribute('data-duration', event.duration || '1');
+            cell.setAttribute('data-start-minutes', minuteInt);
 
-            // Создаем overlay
+            // Создаем overlay с минутами
             createEventOverlay(
                 cell,
                 event.text,
                 event.color,
                 parseFloat(event.duration || 1),
+                minuteInt,
                 event.is_recurring || false
             );
+        } else {
+            console.warn("⚠️ Не нашли ячейку для события:", event);
         }
     });
 }

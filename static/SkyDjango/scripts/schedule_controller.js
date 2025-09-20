@@ -1,4 +1,5 @@
 import {loadEventsForWeek,showEventModal} from './add_note.js';
+import {updateCurrentTimeLine} from './timeline.js';
 
 const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 const DAY_SHORT_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -16,6 +17,7 @@ function initCurrentWeek() {
     updateWeekData();
     generateSchedule();
     updateWeekDisplay();
+    updateCurrentTimeLine(currentWeek, DAY_IDS);
 }
 
 // Обновляем данные недели
@@ -138,6 +140,9 @@ function toggleHoursVisibility() {
         cell.style.display = shouldShowHour(hour) ? 'block' : 'none';
     });
 
+    // Обновляем линию текущего времени
+    updateCurrentTimeLine(currentWeek, DAY_IDS);
+
     // Обновляем текст кнопки
     updateToggleButtonText();
 }
@@ -173,6 +178,7 @@ function changeWeek(daysOffset) {
     generateSchedule();
     updateWeekDisplay();
     loadEventsForWeek();
+    updateCurrentTimeLine(currentWeek, DAY_IDS);
 }
 
 // Получение понедельника для данной даты
@@ -191,12 +197,19 @@ function goToPrevWeek() {
     changeWeek(-7);
 }
 
+setInterval(() => updateCurrentTimeLine(currentWeek, DAY_IDS), 60000);
+
+// Также обновляем при скролле и ресайзе
+window.addEventListener('scroll', () => updateCurrentTimeLine(currentWeek, DAY_IDS));
+window.addEventListener('resize', () => updateCurrentTimeLine(currentWeek, DAY_IDS));
+
 export {
     initCurrentWeek,
     goToPrevWeek,
     goToNextWeek,
     currentWeek,
     toggleHoursVisibility,
+    shouldShowHour
 };
 
 

@@ -26,7 +26,21 @@ def save_event(request):
 
         from datetime import datetime
         date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-        time_obj = datetime.strptime(time_str, '%H').time()
+
+
+        # Парсим время - поддерживаем разные форматы
+        time_obj = None
+        time_formats = ['%H:%M:%S', '%H:%M', '%H']
+
+        for fmt in time_formats:
+            try:
+                time_obj = datetime.strptime(time_str, fmt).time()
+                break
+            except ValueError:
+                continue
+
+        if time_obj is None:
+            return JsonResponse({'status': 'error', 'message': 'Неверный формат времени'})
 
         import uuid
         # создаём уникальный идентификатор серии
@@ -100,7 +114,7 @@ def load_events(request):
 
         events_data=[]
         for event in events:
-            time_str = str(event.time.hour)  # "1" вместо "01"
+            time_str = event.time.strftime('%H:%M')
 
             events_data.append({
                 'date':event.date.strftime('%Y-%m-%d'),

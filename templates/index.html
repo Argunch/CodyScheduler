@@ -36,6 +36,7 @@
     <div class="schedule-wrapper">
         <div class="schedule-container" id="schedule-container"></div>
         <div id="events-overlay" class="events-overlay"></div>
+        <div id="current-time-line" class="current-time-line"></div>
     </div>
 
     <!-- Модальное окно -->
@@ -44,10 +45,17 @@
         <p id="modal-time-info"></p>
         <textarea id="event-text" rows="4" cols="30" placeholder="Введите текст события"></textarea>
 
+        <!-- Поле минут начала -->
+        <div class="form-group">
+            <label for="event-start-minutes">Начало (минуты после часа):</label>
+            <input type="number" id="event-start-minutes" min="0" max="55" step="5" value="0" style="width: 80px;">
+            <small>Минуты после часа (0, 5, 10, 15, ..., 55)</small>
+        </div>
+
         <!-- Поле продолжительности -->
         <div class="form-group">
             <label for="event-duration">Продолжительность (часы:минуты):</label>
-            <input type="text" id="event-duration" placeholder="1:30" value="1:00" style="width: 100px;">
+            <input type="text" id="event-duration" placeholder="1:30" value="1:00" style="width: 50px;">
             <small>Формат: часы:минуты (например: 1:30, 2:45)</small>
         </div>
 
