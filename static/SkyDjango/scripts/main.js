@@ -1,5 +1,6 @@
 import {initCurrentWeek,goToPrevWeek,goToNextWeek,toggleHoursVisibility} from './schedule_controller.js';
 import {saveEvent,deleteEvent,hideEventModal,showEventModal,updateOverlayPositions} from './add_note.js';
+import {initMobileViewToggle} from './mobile_view_mode.js';
 
 // Обновление позиций overlay при изменении размера или скролле
 let resizeTimer;
@@ -28,6 +29,7 @@ document.addEventListener('DOMContentLoaded',
     function()
     {
        initCurrentWeek();
+       initMobileViewToggle(updateOverlayPositions);
 
         // Даем время на рендеринг расписания перед инициализацией overlay
         setTimeout(() => {

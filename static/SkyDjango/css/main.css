@@ -2,6 +2,7 @@
 @import url('week_controller.css');
 @import url('add_note.css');
 @import url('timeline.css');
+@import url('eye_toggle.css');
 
 body {
     font-family: Arial, sans-serif;

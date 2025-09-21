@@ -188,44 +188,60 @@
     filter: brightness(0.8);
 }
 
-
 /* 📱 Адаптив для мобильных */
 @media (max-width: 768px) {
-    .schedule-wrapper {
-        -webkit-overflow-scrolling: touch;
-    }
-
+    /* Компактный режим (по умолчанию) */
     .schedule-cell,
     .time-cell {
-        min-height: 50px; /* вместо 30px */
-        font-size: 14px;  /* покрупнее текст */
+        min-height: 30px;
+        font-size: 10px;
         padding: 5px;
+    }
+
+    .event-item.short {
+        font-size: 6px;
+        padding: 4px 6px;
     }
 
     .day-header,
     .time-header {
-        font-size: 14px;
+        font-size: 9px;
         padding: 8px;
     }
 
-    #toggle-hours-btn,
-    .week-navigation button {
-        padding: 10px 18px;
-        font-size: 14px;
-        border-radius: 6px;
-    }
-
-    .week-navigation {
-        flex-wrap: wrap;
-        gap: 8px;
-        justify-content: center;
-    }
-
     .day-column {
-        min-width: 120px; /* чтобы не сплющивались */
+        min-width: 40px;
+    }
+
+    .time-column {
+        min-width: 30px;
+    }
+
+    /* Расширенный режим (активируется классом .expanded-view) */
+    .expanded-view .schedule-cell,
+    .expanded-view .time-cell {
+        min-height: 50px;
+        font-size: 14px;
+    }
+
+    .expanded-view .day-header,
+    .expanded-view .time-header {
+        font-size: 14px;
+    }
+
+    .expanded-view .day-column {
+        min-width: 120px;
+    }
+
+    .expanded-view .event-item {
+        font-size: 12px !important;
+    }
+
+    .expanded-view .event-item.short {
+        font-size: 10px !important;
+        padding: 6px 8px;
     }
 }
-
 
 
 
