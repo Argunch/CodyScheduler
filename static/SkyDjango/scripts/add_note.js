@@ -11,6 +11,9 @@ function showEventModal(cell, eventData=null)
     currentCell=cell;
     selectedColor = null;
 
+    // Сбрасываем ID редактирования
+    currentCell.removeAttribute('data-editing-id');
+
     const day=cell.getAttribute('data-day');
     const time=cell.getAttribute('data-time');
     const date=cell.getAttribute('data-date');
@@ -36,6 +39,9 @@ function showEventModal(cell, eventData=null)
 
     // === РАЗДЕЛЕНИЕ ЛОГИКИ ===
     if (eventData) {
+
+        // Устанавливаем ID редактируемого события
+        currentCell.setAttribute('data-editing-id', eventData.id);
         // Редактирование существующего события
         // Заполняем текстовое поле текущим текстом ячейки
         document.getElementById('event-text').value = eventData.text || '';
@@ -52,18 +58,8 @@ function showEventModal(cell, eventData=null)
             }
         }
 
-        // Извлекаем минуты из времени начала
-        let minutes = 0;
-        if (eventData.time) {
-            // Проверяем разные форматы времени
-            if (eventData.time.includes(':')) {
-                const timeParts = eventData.time.split(':');
-                minutes = parseInt(timeParts[1]) || 0;
-            } else {
-                // Если время пришло в старом формате (только часы)
-                minutes = 0;
-            }
-        }
+        // Извлекаем минуты из eventData (если есть)
+        let minutes = eventData.startMinutes ?? 0;
         document.getElementById('event-start-minutes').value = minutes;
 
         // Восстановление продолжительности (конвертируем в формат времени)
@@ -204,7 +200,7 @@ function calculateEventPosition(cell, durationHours = 1, startMinutes = 0) {
 }
 
 // Создание overlay события
-function createEventOverlay(cell, text, color, durationHours, startMinutes = 0, isRecurring = false) {
+function createEventOverlay(cell, text, color, durationHours, startMinutes = 0, isRecurring = false, id = null) {
     const position = calculateEventPosition(cell, durationHours, startMinutes);
 
     const overlay = document.createElement('div');
@@ -214,6 +210,9 @@ function createEventOverlay(cell, text, color, durationHours, startMinutes = 0, 
     overlay.style.width = `${position.width}px`;
     overlay.style.height = `${position.height}px`;
     overlay.textContent = text;
+
+
+    overlay.setAttribute('data-id', id);
 
     overlay.setAttribute('data-time', position.time);
     overlay.setAttribute('data-start-minutes', startMinutes);
@@ -231,6 +230,7 @@ function createEventOverlay(cell, text, color, durationHours, startMinutes = 0, 
         e.stopPropagation();
 
         const eventData = {
+            id: this.getAttribute('data-id'),
             date: this.getAttribute('data-date'),
             time: this.getAttribute('data-time'),
             text: this.textContent,
@@ -276,20 +276,9 @@ function updateOverlayPositions() {
     });
 }
 // Удаление overlay
-function removeEventOverlay(cell) {
-    const time = cell.getAttribute('data-time');
-    const date = cell.getAttribute('data-date');
-
-    const startMinutes = cell.getAttribute('data-start-minutes') || '0';
-
-    // Находим overlay с точным совпадением времени, даты и минут начала
-    const overlay = document.querySelector(
-        `.event-item[data-date="${date}"][data-time="${time}"][data-start-minutes="${startMinutes}"]`
-    );
-
-    if (overlay) {
-        overlay.remove();
-    }
+function removeEventOverlay(eventId) {
+    const overlays = document.querySelectorAll(`.event-item[data-id="${eventId}"]`);
+    overlays.forEach(overlay => overlay.remove());
 }
 
 
@@ -317,13 +306,8 @@ async function deleteEvent()
 
 // Функция отправки запроса на удаление на сервер
 async function deleteEventFromServer(cell) {
-    const date = cell.getAttribute('data-date');
-    const hour = parseInt(cell.getAttribute('data-time'));
-    const minutes = parseInt(cell.getAttribute('data-start-minutes') || '0');
+    const eventId = cell.getAttribute('data-id');
     const isRecurring = document.getElementById('is-recurring')?.checked;
-
-    // Формируем точное время в формате HH:MM:SS
-    const normalizedTime = `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
 
     try {
         const response = await fetch(`${API_BASE_URL}/delete-event/`, {
@@ -333,8 +317,7 @@ async function deleteEventFromServer(cell) {
                 'X-CSRFToken': getCSRFToken(),
             },
             body: JSON.stringify({
-                date: date,
-                time: normalizedTime,
+                id: eventId,  // ← отправляем id события
                 delete_recurring: isRecurring
             })
         });
@@ -352,7 +335,13 @@ async function deleteEventFromServer(cell) {
 
 // Функция проверки, есть ли существующая запись в ячейке
 function hasExistingEvent(cell) {
-    return cell.textContent.trim() !== '' || cell.getAttribute('data-color');
+    // Проверяем наличие overlay для этой ячейки
+    const time = cell.getAttribute('data-time');
+    const date = cell.getAttribute('data-date');
+    const overlays = document.querySelectorAll(
+        `.event-item[data-date="${date}"][data-time="${time}"]`
+    );
+    return overlays.length > 0;
 }
 
 
@@ -375,13 +364,9 @@ function toggleRecurringDeleteOption() {
 }
 
 
-async function saveEventToServer(cell,text,color,isRecurring=false, duration = 1.0, timeString)
+async function saveEventToServer(cell,text,color,isRecurring=false, duration = 1.0, timeString, eventId=null)
 {
     const date=cell.getAttribute('data-date');
-    const cellHour = parseInt(cell.getAttribute('data-time'));
-
-    console.log('Отправляем время на сервер:', timeString); // ← Добавьте это
-
     try
     {
         const response=await fetch(`${API_BASE_URL}/save-event/`, {
@@ -391,6 +376,7 @@ async function saveEventToServer(cell,text,color,isRecurring=false, duration = 1
                 'X-CSRFToken': getCSRFToken(),
             },
             body: JSON.stringify({
+                id: eventId,
                 date: date,
                 time: timeString,
                 text: text,
@@ -400,14 +386,12 @@ async function saveEventToServer(cell,text,color,isRecurring=false, duration = 1
             })
         });
 
-        const data = await response.json();
-        if (data.status !== 'success') {
-            console.error('Ошибка сохранения:', data.message);
-        }
+        return await response.json();
     }
     catch(error)
     {
         console.error('Ошибка сети:',error);
+        return {status: 'error', message: 'Ошибка сети'};
     }
 }
 
@@ -448,15 +432,14 @@ function getCSRFToken() {
 }
 
 // Функция сохранения события
-function saveEvent() {
+async function saveEvent() {
     if (currentCell) {
         const eventText = document.getElementById('event-text').value;
         const isRecurring = document.getElementById('is-recurring').checked;
 
-        // Получаем минуты из input (только число)
+        // Получаем минуты из input
         const startMinutesInput = document.getElementById('event-start-minutes');
         const startMinutes = parseInt(startMinutesInput.value) || 0;
-        console.log("startMinutes", startMinutes);
 
         const durationInput = document.getElementById('event-duration').value;
         const duration = timeToDecimal(durationInput) || 1;
@@ -467,28 +450,46 @@ function saveEvent() {
             return;
         }
 
-        // СОХРАНЯЕМ ПОСЛЕДНЮЮ ПРОДОЛЖИТЕЛЬНОСТЬ
         saveLastDuration(durationInput);
 
-        // Сохраняем данные в ячейку (для хранения)
-        currentCell.setAttribute('data-duration', duration);
-        currentCell.setAttribute('data-text', eventText);
-        currentCell.setAttribute('data-color', selectedColor || 'blue');
-        currentCell.setAttribute('data-start-minutes', startMinutes);
-
-        // Удаляем старый overlay если есть
-        removeEventOverlay(currentCell);
-
-        // Создаем новый overlay
-        createEventOverlay(currentCell, eventText, selectedColor, duration, startMinutes, isRecurring);
-
-        // Формируем время для сервера (часы из ячейки + минуты из поля)
+        // Формируем время для сервера
         const cellHour = parseInt(currentCell.getAttribute('data-time'));
         const timeString = `${cellHour.toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')}:00`;
 
-        saveEventToServer(currentCell, eventText, selectedColor, isRecurring, duration, timeString);
-    }
+        // Получаем ID редактируемого события (если есть)
+        const eventId = currentCell.getAttribute('data-editing-id') || null;
 
+        // Сохраняем на сервере
+        const response = await saveEventToServer(
+            currentCell,
+            eventText,
+            selectedColor,
+            isRecurring,
+            duration,
+            timeString,
+            eventId  // ← передаем ID редактируемого события
+        );
+
+        if (response.status === 'success') {
+            // Удаляем старый overlay если редактируем существующее событие
+            if (eventId) {
+                removeEventOverlay(eventId);
+            }
+
+            // Создаём новый overlay
+            createEventOverlay(
+                currentCell,
+                eventText,
+                selectedColor,
+                duration,
+                startMinutes,
+                isRecurring,
+                response.id
+            );
+        } else {
+            console.error('Ошибка сохранения:', response.message);
+        }
+    }
 
     hideEventModal();
 }
@@ -518,8 +519,6 @@ async function loadEventsForWeek() {
 
     // Применяем события к ячейкам
     serverEvents.forEach(event => {
-        console.log("Загружаем событие:", event);
-
         const [hours, minutes] = event.time.split(':');
         const hourInt = parseInt(hours, 10);
         const minuteInt = parseInt(minutes || '0', 10);
@@ -530,9 +529,8 @@ async function loadEventsForWeek() {
         );
 
         if (cell) {
-            console.log(`Нашли ячейку: дата=${event.date}, час=${hourInt}, мин=${minuteInt}`, cell);
-
             // Сохраняем данные в ячейке
+            cell.setAttribute('data-id', event.id);
             cell.setAttribute('data-text', event.text);
             cell.setAttribute('data-color', event.color || '');
             cell.setAttribute('data-duration', event.duration || '1');
@@ -545,7 +543,8 @@ async function loadEventsForWeek() {
                 event.color,
                 parseFloat(event.duration || 1),
                 minuteInt,
-                event.is_recurring || false
+                event.is_recurring || false,
+                event.id
             );
         } else {
             console.warn("⚠️ Не нашли ячейку для события:", event);

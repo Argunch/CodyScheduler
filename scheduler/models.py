@@ -10,11 +10,11 @@ class ScheduleEvent(models.Model):
     color=models.CharField(max_length=20,blank=True, default='')
     is_recurring = models.BooleanField(default=False)
     series_id = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
-    duration = models.FloatField(default=1.0, help_text="Duration in hours")  # Новое поле
+    duration = models.FloatField(default=1.0, help_text="Duration in hours")
 
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at=models.DateTimeField(auto_now=True)
 
-    class Meta:
-        unique_together=['user','date','time']
+    def __str__(self):
+        return f"{self.user} {self.date} {self.time} ({self.text[:20]})"
 
