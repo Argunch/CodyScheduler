@@ -63,10 +63,12 @@ def save_event(request):
                     event.series_id = series
                     event.save()
 
+                    from datetime import timedelta
+
                     # Создаем будущие события
                     create_recurring_events(
                         request.user,
-                        date_obj,  # ← используем новую дату
+                        date_obj + timedelta(weeks=1),  # ← используем новую дату
                         time_obj,  # ← используем новое время
                         text,
                         color,
@@ -96,23 +98,55 @@ def save_event(request):
 
                 # Если регулярное событие становится нерегулярным
                 elif event.is_recurring and not is_recurring:
-                    # Удаляем все события серии кроме текущего
-                    series_id = event.series_id
+                    import uuid
+                    from datetime import timedelta
+
+                    # Сохраняем исходные данные старой серии
+                    original_time = event.time
+                    original_text = event.text
+                    original_color = event.color
+                    original_duration = event.duration
+
+                    # 1. Удаляем все будущие события старой серии (но НЕ трогаем текущее)
                     ScheduleEvent.objects.filter(
                         user=request.user,
-                        series_id=series_id
-                    ).exclude(id=event_id).delete()
+                        series_id=event.series_id,
+                        date__gt=date_obj
+                    ).delete()
 
-                    # Обновляем текущее событие с новыми данными
-                    event.date = date_obj  # ← обновляем дату
-                    event.time = time_obj  # ← обновляем время
+
+
+                    # 2. Создаем новую серию регулярных событий с теми же параметрами
+                    new_series_id = uuid.uuid4()
+                    new_start_date = date_obj
+
+                    # Проверяем, что на new_start_date в это время нет других событий
+                    while ScheduleEvent.objects.filter(
+                            user=request.user,
+                            date=new_start_date,
+                            time=original_time
+                    ).exists():
+                        new_start_date += timedelta(weeks=1)
+
+                    # Создаем новую серию, если дата не ушла слишком далеко
+                    if new_start_date <= date_obj + timedelta(weeks=52):
+                        create_recurring_events(
+                            request.user,
+                            new_start_date,
+                            original_time,
+                            original_text,
+                            original_color,
+                            original_duration,
+                            new_series_id,
+                            weeks_ahead=52
+                        )
+
+                    # 3. Обновляем текущее событие → превращаем в одиночное
                     event.text = text
                     event.color = color
-                    event.is_recurring = is_recurring
+                    event.is_recurring = False
                     event.duration = duration
-                    # Создаем новый UUID для одиночного события
-                    import uuid
-                    event.series_id = uuid.uuid4()
+                    event.series_id = uuid.uuid4()  # уникальный ID для одиночного события
                     event.save()
 
                 else:
@@ -165,10 +199,12 @@ def create_recurring_events(user, start_date, time, text, color, duration=1.0, s
     """Создает регулярные события на год вперед"""
     from datetime import timedelta
     try:
-        for week in range(1, weeks_ahead + 1):
+        for week in range(0, weeks_ahead + 1):
             event_date = start_date + timedelta(weeks=week)
 
-            # Создаем событие с указанием series_id
+            if ScheduleEvent.objects.filter(user=user, date=event_date, time=time).exists():
+                continue
+
             ScheduleEvent.objects.create(
                 user=user,
                 date=event_date,
@@ -179,11 +215,9 @@ def create_recurring_events(user, start_date, time, text, color, duration=1.0, s
                 duration=duration,
                 series_id=series
             )
-        print(f"Created recurring events for {weeks_ahead} weeks")
     except Exception as e:
-        print(f"Error in create_recurring_events: {str(e)}")
+        print(f"[ERROR] in create_recurring_events: {str(e)}")
         raise e
-
 
 @csrf_exempt
 @login_required
