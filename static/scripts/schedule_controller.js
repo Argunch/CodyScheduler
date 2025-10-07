@@ -1,4 +1,3 @@
-import {loadEventsForWeek,showEventModal} from './add_note.js';
 import {updateCurrentTimeLine} from './timeline.js';
 
 const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
@@ -13,11 +12,12 @@ let currentWeek = {
 let showAllHours = false; // Флаг для отображения всех часов
 
 // Основная функция инициализации
-function initCurrentWeek() {
+async function initCurrentWeek() {
     updateWeekData();
-    generateSchedule();
+    await generateSchedule();
     updateWeekDisplay();
     updateCurrentTimeLine(currentWeek, DAY_IDS);
+    return currentWeek;
 }
 
 // Обновляем данные недели
@@ -41,24 +41,32 @@ function updateWeekData() {
 }
 
 // Генерация расписания
-function generateSchedule() {
+async function generateSchedule() {
     const container = document.getElementById('schedule-container');
-    container.innerHTML = '';
+    // Сохраняем overlay перед очисткой
+    const overlay = document.getElementById('events-overlay');
 
-    const daysContainer = document.createElement('div');
-    daysContainer.className = 'days-container';
+    // Очищаем только содержимое расписания, но не overlay
+    const daysContainer = container.querySelector('.days-container');
+    if (daysContainer) {
+        daysContainer.remove();
+    }
+
+    // Создаем новый days-container
+    const newDaysContainer = document.createElement('div');
+    newDaysContainer.className = 'days-container';
 
     // Колонка времени
-    daysContainer.appendChild(createTimeColumn());
+    newDaysContainer.appendChild(createTimeColumn());
 
     // Колонки дней
     currentWeek.days.forEach(day => {
-        daysContainer.appendChild(createDayColumn(day));
+        newDaysContainer.appendChild(createDayColumn(day));
     });
 
-    container.appendChild(daysContainer);
+    container.appendChild(newDaysContainer);
 
-    loadEventsForWeek();
+    return Promise.resolve();
 }
 
 // Создание колонки времени
@@ -95,10 +103,9 @@ function createDayColumn(day) {
     for (let hour = 0; hour < 24; hour++) {
         const cell = createElement('div', 'schedule-cell', '');
         cell.setAttribute('data-day', day.day);
-        cell.setAttribute('data-time', hour);
+        cell.setAttribute('data-time', `${hour.toString().padStart(2, '0')}:00`);
         cell.setAttribute('data-date', day.date);
         cell.title = `${formatDate(day.date)}\n${hour}:00`;
-        cell.addEventListener('click', function() {showEventModal(this);});
         // Скрываем ночные часы по умолчанию
         if (!shouldShowHour(hour)) {
             cell.style.display = 'none';
@@ -172,13 +179,16 @@ function updateWeekDisplay() {
 }
 
 // Навигация по неделям
-function changeWeek(daysOffset) {
+async function changeWeek(daysOffset) {
     currentWeek.startDate.setDate(currentWeek.startDate.getDate() + daysOffset);
     updateWeekData();
-    generateSchedule();
+    await generateSchedule();
     updateWeekDisplay();
-    loadEventsForWeek();
+
     updateCurrentTimeLine(currentWeek, DAY_IDS);
+
+    // Возвращаем обновленную неделю для EventManager
+    return currentWeek;
 }
 
 // Получение понедельника для данной даты

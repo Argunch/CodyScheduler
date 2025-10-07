@@ -42,6 +42,19 @@ def save_event(request):
         if time_obj is None:
             return JsonResponse({'status': 'error', 'message': 'Неверный формат времени'})
 
+        # ПРОВЕРКА ДУБЛИКАТА
+        existing_event = ScheduleEvent.objects.filter(
+            user=request.user,
+            date=date_obj,
+            time=time_obj
+        ).first()
+
+        if existing_event and not event_id:  # Только для создания нового
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Событие в это время уже существует'
+            })
+
         # --- Если есть id → обновляем существующее событие
         if event_id:
             try:
