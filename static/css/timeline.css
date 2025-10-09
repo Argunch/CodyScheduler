@@ -1,23 +1,25 @@
 /* Линия на всю неделю (тонкая) */
 .current-time-week-line {
     position: absolute;
-    height: 1.5px;
+    height: 2px;
     background-color: #A9A9A9;
     z-index: 4;
     pointer-events: none;
     opacity: 0.7;
     left: 60px; /* Ширина time-column */
-    width: calc(100% - 60px); /* Минус ширина time-column */
+    width: calc(100% - 60px);
+    transform: translateZ(0); /* 🔥 Стабилизация */
 }
 
 /* Линия на текущий день (толстая) */
 .current-time-day-line {
     position: absolute;
-    height: 1.5px;
+    height: 2px;
     background-color: #00BFFF;
     z-index: 5;
     pointer-events: none;
-    box-shadow: 0 0 6px rgba(255, 0, 0, 0.4);
+    box-shadow: 0 0 1px #0092FF;
+    transform: translateZ(0); /* 🔥 Стабилизация */
 }
 
 /* Общие стили для линий */

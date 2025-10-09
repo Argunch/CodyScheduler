@@ -1,4 +1,4 @@
-import {updateCurrentTimeLine} from './timeline.js';
+import { TimelineManager } from './services/timeline-manager.js';
 
 const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 const DAY_SHORT_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -9,6 +9,9 @@ let currentWeek = {
   days: []
 };
 
+// Создаем экземпляр TimelineManager
+const timelineManager = new TimelineManager();
+
 let showAllHours = false; // Флаг для отображения всех часов
 
 // Основная функция инициализации
@@ -16,7 +19,11 @@ async function initCurrentWeek() {
     updateWeekData();
     await generateSchedule();
     updateWeekDisplay();
-    updateCurrentTimeLine(currentWeek, DAY_IDS);
+    timelineManager.init(currentWeek);
+
+    // 🔥 ДОБАВЛЯЕМ ПОДСВЕТКУ ТЕКУЩЕГО ДНЯ
+    highlightCurrentDay();
+
     return currentWeek;
 }
 
@@ -97,6 +104,12 @@ function createDayColumn(day) {
     // Заголовок дня
     const header = createElement('div', 'day-header', `${day.dayOfMonth}, ${day.shortName}`);
     header.title = `${day.dayName} ${day.date}`;
+
+    // 🔥 ДОБАВЛЯЕМ ПРОВЕРКУ НА ТЕКУЩИЙ ДЕНЬ
+    if (day.date === getCurrentDateString()) {
+        header.classList.add('current-day');
+    }
+
     dayColumn.appendChild(header);
 
     // Ячейки времени
@@ -147,8 +160,8 @@ function toggleHoursVisibility() {
         cell.style.display = shouldShowHour(hour) ? 'block' : 'none';
     });
 
-    // Обновляем линию текущего времени
-    updateCurrentTimeLine(currentWeek, DAY_IDS);
+    // Обновляем линии времени
+    timelineManager.update();
 
     // Обновляем текст кнопки
     updateToggleButtonText();
@@ -185,10 +198,30 @@ async function changeWeek(daysOffset) {
     await generateSchedule();
     updateWeekDisplay();
 
-    updateCurrentTimeLine(currentWeek, DAY_IDS);
+    // Обновляем неделю в TimelineManager
+    timelineManager.setCurrentWeek(currentWeek);
+
+    // 🔥 ОБНОВЛЯЕМ ПОДСВЕТКУ ТЕКУЩЕГО ДНЯ
+    highlightCurrentDay();
 
     // Возвращаем обновленную неделю для EventManager
     return currentWeek;
+}
+
+// 🔥 НОВАЯ ФУНКЦИЯ: Подсветка текущего дня
+function highlightCurrentDay() {
+    const currentDate = getCurrentDateString();
+
+    // Убираем подсветку со всех заголовков
+    document.querySelectorAll('.day-header').forEach(header => {
+        header.classList.remove('current-day');
+    });
+
+    // Добавляем подсветку текущему дню
+    const currentDayHeader = document.querySelector(`[data-date="${currentDate}"]`)?.closest('.day-column')?.querySelector('.day-header');
+    if (currentDayHeader) {
+        currentDayHeader.classList.add('current-day');
+    }
 }
 
 // Получение понедельника для данной даты
@@ -207,11 +240,12 @@ function goToPrevWeek() {
     changeWeek(-7);
 }
 
-setInterval(() => updateCurrentTimeLine(currentWeek, DAY_IDS), 60000);
 
-// Также обновляем при скролле и ресайзе
-window.addEventListener('scroll', () => updateCurrentTimeLine(currentWeek, DAY_IDS));
-window.addEventListener('resize', () => updateCurrentTimeLine(currentWeek, DAY_IDS));
+
+// Добавляем новую функцию
+function getCurrentDateString() {
+    return new Date().toISOString().split('T')[0];
+}
 
 export {
     initCurrentWeek,
@@ -219,7 +253,8 @@ export {
     goToNextWeek,
     currentWeek,
     toggleHoursVisibility,
-    shouldShowHour
+    shouldShowHour,
+    timelineManager
 };
 
 

@@ -1,12 +1,13 @@
 import {currentWeek,initCurrentWeek,goToPrevWeek,goToNextWeek,toggleHoursVisibility} from './schedule_controller.js';
 import { EventManager } from './services/event-manager.js';
-import {initMobileViewToggle} from './mobile_view_mode.js';
+import { initMobileViewToggle } from './mobile_view_mode.js';
+import { timelineManager } from './schedule_controller.js';
 
 let eventManager = null;
 
-/**
+/*
  * Инициализация навигации по неделям
- */
+*/
 function initWeekNavigation() {
     // Предыдущая неделя
     document.getElementById('prev-week').addEventListener('click', async () => {
@@ -35,6 +36,8 @@ function initHoursToggle() {
         if (eventManager) {
             setTimeout(() => {
                 eventManager.updateOverlayPositions();
+                // Обновляем линии времени
+                timelineManager.update();
             }, 150);
         }
     });
@@ -53,6 +56,8 @@ function initPageVisibilityHandler() {
             if (eventManager) {
                 setTimeout(() => {
                     eventManager.updateOverlayPositions();
+                    // Обновляем линии времени
+                    timelineManager.update();
                 }, 50);
             }
         }
@@ -67,6 +72,8 @@ function initMobileView() {
         if (eventManager) {
             setTimeout(() => {
                 eventManager.updateOverlayPositions();
+                // Обновляем линии времени
+                timelineManager.update();
             }, 150);
         }
     });

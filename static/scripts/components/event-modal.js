@@ -193,8 +193,6 @@ export class EventModal {
                         ...eventData,
                         id: response.id
                     });
-
-
                 } else {
                     console.error('Ошибка сохранения:', response.message);
                     alert('Ошибка сохранения: ' + response.message);
