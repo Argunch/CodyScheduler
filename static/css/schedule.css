@@ -32,7 +32,7 @@
     border: 2px solid #2980b9;
     border-radius: 6px;
     padding: 8px;
-    color: white;
+    color: black;
     font-size: 12px;
     overflow: hidden;
     cursor: pointer;
@@ -49,13 +49,13 @@
 
 /* Цвета событий */
 .event-item.blue { background: #279FF5; border-color: #138ECF; }
-.event-item.yellow { background: #FFF000; border-color: #D1C526; }
-.event-item.green { background: #11FF00; border-color: #22BA22; }
+.event-item.yellow { background: #D5E000; border-color: #D1C526; }
+.event-item.green { background: #27EB00; border-color: #22BA22; }
 .event-item.purple { background: #AE47FF; border-color: #7324B3; }
 
 /* Для коротких событий */
 .event-item.short {
-    font-size: 10px;
+    font-size: 14px;
     padding: 4px 6px;
 }
 
@@ -115,7 +115,7 @@
 
 
 .time-cell {
-    min-height: 30px;
+    min-height: 50px;
     border: 1px solid #ddd;
     display: flex;
     align-items: center;
@@ -128,8 +128,8 @@
 
 
 .schedule-cell {
-    min-height: 30px;
-    max-height: 30px;
+    min-height: 50px;
+    max-height: 50px;
     font-size: 10px;
     border: 1px solid #ddd;
     overflow: hidden;
@@ -168,31 +168,8 @@
     gap: 10px;
 }
 
-/* Цвета для ячеек */
-.schedule-cell.blue {
-    background-color: #3498db;
-    color: white;
-}
-
-.schedule-cell.yellow {
-    background-color: #f1c40f;
-    color: black;
-}
-
-.schedule-cell.green {
-    background-color: #2ecc71;
-    color: white;
-}
-/* ------------- */
-
 .schedule-cell:hover{
     filter: brightness(0.95);
-}
-
-.schedule-cell.blue:hover,
-.schedule-cell.yellow:hover,
-.schedule-cell.green:hover {
-    filter: brightness(0.8);
 }
 
 /* 📱 Адаптив для мобильных */

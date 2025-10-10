@@ -11,7 +11,6 @@
 </head>
 
 <body>
-    <!-- В вашем base template -->
     <div style="position: absolute; top: 10px; right: 10px;">
         {% if user.is_authenticated %}
             <span>Привет, {{ user.username }}!</span>
@@ -26,11 +25,24 @@
     </div>
 
     <h1>Расписание</h1>
-    <div class="week-navigation">
-        <button id="prev-week">←</button>
-        <span id="current-week-range">18.08.2025 - 22.08.2025</span>
-        <button id="next-week">→</button>
+
+    <div class="over_schedule">
+        <div class="week-navigation">
+            <button id="prev-week">←</button>
+            <span id="current-week-range">18.08.2025 - 22.08.2025</span>
+            <button id="next-week">→</button>
+        </div>
         <button id="toggle-hours-btn">Показать все часы</button>
+        <!-- Выпадающий список пользователей (только для суперпользователей) -->
+        {% if user.is_superuser %}
+        <div class="user-switcher">
+            <select id="user-select">
+                <option value="self">Мое расписание</option>
+                <!-- Опции будут загружены через JavaScript -->
+            </select>
+            <span id="current-user-info"></span>
+        </div>
+        {% endif %}
 
         <!-- Кнопка переключения режима глаза -->
         <label class="eyeToggle mobile-only" id="mobile-view-toggle" style="display: none;">
@@ -45,6 +57,8 @@
             </div>
         </label>
     </div>
+
+
 
     <div class="schedule-wrapper">
         <div class="schedule-container" id="schedule-container">

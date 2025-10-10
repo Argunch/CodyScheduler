@@ -1,9 +1,12 @@
 import {currentWeek,initCurrentWeek,goToPrevWeek,goToNextWeek,toggleHoursVisibility} from './schedule_controller.js';
 import { EventManager } from './services/event-manager.js';
+import { UserManager } from './services/user-manager.js';
 import { initMobileViewToggle } from './mobile_view_mode.js';
 import { timelineManager } from './schedule_controller.js';
 
 let eventManager = null;
+let userManager = null;
+
 
 /*
  * Инициализация навигации по неделям
@@ -39,6 +42,27 @@ function initHoursToggle() {
                 // Обновляем линии времени
                 timelineManager.update();
             }, 150);
+        }
+    });
+}
+
+/**
+ * Настройка обработчиков смены пользователя
+ */
+function initUserChangeHandlers() {
+    if (!userManager) return;
+
+    // Обработчик события смены пользователя
+    userManager.onUserChanged(async (event) => {
+        // Перезагружаем события для нового пользователя
+        if (eventManager) {
+            try {
+                await eventManager.loadEventsForWeek();
+                eventManager.updateOverlayPositions();
+                timelineManager.update();
+            } catch (error) {
+                console.error('❌ Ошибка перезагрузки событий:', error);
+            }
         }
     });
 }
@@ -87,6 +111,11 @@ async function initializeApplication() {
 
         // 1. Инициализация текущей недели (ждем завершения)
         const week = await initCurrentWeek(); // ← Получаем неделю
+
+        // 2. Инициализация менеджера пользователей
+        userManager = new UserManager();
+        await userManager.initUserSwitcher();
+        initUserChangeHandlers();
 
         // 2. Создание менеджера событий
         eventManager = new EventManager({ currentWeek: week });

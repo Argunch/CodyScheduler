@@ -1,0 +1,20 @@
+.user-switcher {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#user-select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+}
+
+#current-user-info {
+    font-size: 14px;
+    color: #666;
+    font-style: italic;
+}

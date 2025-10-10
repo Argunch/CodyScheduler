@@ -106,6 +106,62 @@ export class ApiService {
     }
 
     /**
+     * Получить список пользователей
+     * @returns {Promise<Array>} Массив пользователей
+     */
+    async getUsersList() {
+        try {
+            const response = await fetch(`${this.baseUrl}/get_users_list/`, {
+                headers: {
+                    'X-CSRFToken': this.getCSRFToken(),
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                return data.users;
+            } else {
+                throw new Error(data.message || 'Ошибка загрузки списка пользователей');
+            }
+        } catch (error) {
+            console.error('Ошибка при загрузке списка пользователей:', error);
+            throw new Error(`Сетевая ошибка: ${error.message}`);
+        }
+    }
+
+    /**
+     * Переключиться на другого пользователя
+     * @param {string} userId - ID пользователя
+     * @returns {Promise<Object>} Ответ сервера
+     */
+    async switchUser(userId) {
+        try {
+            const response = await fetch(`${this.baseUrl}/switch_user/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken(),
+                },
+                body: JSON.stringify({ user_id: userId })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Ошибка при переключении пользователя:', error);
+            throw new Error(`Сетевая ошибка: ${error.message}`);
+        }
+    }
+
+    /**
      * Загрузить события для текущей недели
      * @param {Array} weekDays - Массив дней недели
      * @returns {Promise<Array>} Массив событий

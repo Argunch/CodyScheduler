@@ -169,7 +169,7 @@ function toggleHoursVisibility() {
 
 // Проверка, нужно ли показывать час
 function shouldShowHour(hour) {
-    return showAllHours || (hour >= 7 && hour <= 20);
+    return showAllHours || (hour >= 8 && hour <= 19);
 }
 
 // Обновление текста кнопки

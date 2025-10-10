@@ -11,11 +11,27 @@ from .models import ScheduleEvent
 from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
+
+from django.contrib.auth.models import User
+from .models import ScheduleEvent
+
+def get_target_user(request):
+    """Определяет целевого пользователя для операций"""
+    target_user_id = request.session.get('target_user_id')
+    if target_user_id and request.user.is_superuser:
+        try:
+            return User.objects.get(id=target_user_id)
+        except User.DoesNotExist:
+            pass
+    return request.user
+
 @csrf_exempt
 @require_POST
 @login_required
 def save_event(request):
     try:
+        target_user = get_target_user(request)
+
         data = json.loads(request.body)
         event_id = data.get('id')  # ← ловим id, если редактирование
 
@@ -44,7 +60,7 @@ def save_event(request):
 
         # ПРОВЕРКА ДУБЛИКАТА
         existing_event = ScheduleEvent.objects.filter(
-            user=request.user,
+            user=target_user,
             date=date_obj,
             time=time_obj
         ).first()
@@ -58,7 +74,7 @@ def save_event(request):
         # --- Если есть id → обновляем существующее событие
         if event_id:
             try:
-                event = ScheduleEvent.objects.get(id=event_id, user=request.user)
+                event = ScheduleEvent.objects.get(id=event_id, user=target_user)
 
                 # Если событие становится регулярным (было нерегулярным, стало регулярным)
                 if not event.is_recurring and is_recurring:
@@ -80,7 +96,7 @@ def save_event(request):
 
                     # Создаем будущие события
                     create_recurring_events(
-                        request.user,
+                        target_user,
                         date_obj + timedelta(weeks=1),  # ← используем новую дату
                         time_obj,  # ← используем новое время
                         text,
@@ -96,7 +112,7 @@ def save_event(request):
 
                     # Обновляем все события этой серии
                     events_to_update = ScheduleEvent.objects.filter(
-                        user=request.user,
+                        user=target_user,
                         series_id=series_id
                     )
 
@@ -122,7 +138,7 @@ def save_event(request):
 
                     # 1. Удаляем все будущие события старой серии (но НЕ трогаем текущее)
                     ScheduleEvent.objects.filter(
-                        user=request.user,
+                        user=target_user,
                         series_id=event.series_id,
                         date__gt=date_obj
                     ).delete()
@@ -135,7 +151,7 @@ def save_event(request):
 
                     # Проверяем, что на new_start_date в это время нет других событий
                     while ScheduleEvent.objects.filter(
-                            user=request.user,
+                            user=target_user,
                             date=new_start_date,
                             time=original_time
                     ).exists():
@@ -144,7 +160,7 @@ def save_event(request):
                     # Создаем новую серию, если дата не ушла слишком далеко
                     if new_start_date <= date_obj + timedelta(weeks=52):
                         create_recurring_events(
-                            request.user,
+                            target_user,
                             new_start_date,
                             original_time,
                             original_text,
@@ -181,7 +197,7 @@ def save_event(request):
             import uuid
             series = uuid.uuid4()
             event = ScheduleEvent.objects.create(
-                user=request.user,
+                user=target_user,
                 date=date_obj,
                 time=time_obj,
                 text=text,
@@ -194,7 +210,7 @@ def save_event(request):
             # Если это регулярное занятие — создаём будущие
             if is_recurring:
                 create_recurring_events(
-                    request.user,
+                    target_user,
                     date_obj,
                     time_obj,
                     text,
@@ -236,6 +252,8 @@ def create_recurring_events(user, start_date, time, text, color, duration=1.0, s
 @login_required
 def load_events(request):
     try:
+        target_user = get_target_user(request)
+
         date_from=request.GET.get('date_from')
         date_to=request.GET.get('date_to')
 
@@ -244,7 +262,7 @@ def load_events(request):
         date_to_obj=datetime.strptime(date_to,'%Y-%m-%d').date()
 
         events=ScheduleEvent.objects.filter(
-            user=request.user,
+            user=target_user,
             date__range=[date_from_obj,date_to_obj]
         )
 
@@ -272,6 +290,8 @@ def load_events(request):
 @login_required
 def delete_event(request):
     try:
+        target_user = get_target_user(request)
+
         data = json.loads(request.body)
         event_id = data.get('id')  # ← получаем id события
         delete_recurring = data.get('delete_recurring', False)
@@ -280,12 +300,12 @@ def delete_event(request):
             return JsonResponse({'status': 'error', 'message': 'Не указан ID события'})
 
         try:
-            event = ScheduleEvent.objects.get(id=event_id, user=request.user)
+            event = ScheduleEvent.objects.get(id=event_id, user=target_user)
 
             if delete_recurring:
                 # Удаляем все регулярные занятия из этой серии
                 ScheduleEvent.objects.filter(
-                    user=request.user,
+                    user=target_user,
                     series_id=event.series_id,
                 ).delete()
             else:
@@ -298,6 +318,49 @@ def delete_event(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
 
+
+@csrf_exempt
+@require_POST
+@login_required
+def switch_user(request):
+    """Переключение на другого пользователя"""
+    if not request.user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'Доступ запрещен'})
+
+    try:
+        data = json.loads(request.body)
+        user_id = data.get('user_id')
+
+        if user_id == 'self':
+            # Возврат к своему расписанию
+            if 'target_user_id' in request.session:
+                del request.session['target_user_id']
+            return JsonResponse({'status': 'success', 'message': 'Режим просмотра: свое расписание'})
+
+        target_user = User.objects.get(id=user_id)
+        request.session['target_user_id'] = user_id
+
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Режим просмотра: {target_user.username}'
+        })
+
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Пользователь не найден'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+
+
+@login_required
+def get_users_list(request):
+    """Получение списка пользователей для суперпользователя"""
+    if not request.user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'Доступ запрещен'})
+
+    users = User.objects.all().order_by('username')
+    users_data = [{'id': user.id, 'username': user.username} for user in users]
+
+    return JsonResponse({'status': 'success', 'users': users_data})
 
 def signup(request):
     if request.method == 'POST':
