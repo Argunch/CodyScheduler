@@ -18,13 +18,19 @@ export class UserManager {
             // Загружаем список пользователей через ApiService
             const users = await this.apiService.getUsersList();
 
-            // Добавляем пользователей в выпадающий список
+            // Добавляем пользователей в выпадающий список, исключая текущего
             users.forEach(user => {
-                const option = document.createElement('option');
-                option.value = user.id;
-                option.textContent = user.username;
-                userSelect.appendChild(option);
+                // 👇 Пропускаем текущего пользователя
+                if (user.id.toString() !== this.getCurrentUserId()) {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = user.username;
+                    userSelect.appendChild(option);
+                }
             });
+
+            // Восстанавливаем сохраненный выбор
+            await this.restoreUserSelection();
 
             // Обработчик изменения выбора
             userSelect.addEventListener('change', (e) => {
@@ -38,6 +44,23 @@ export class UserManager {
         }
     }
 
+    getCurrentUserId() {
+        // Из data-атрибута
+        const userElement = document.querySelector('[data-user-id]');
+        if (userElement) {
+            return userElement.dataset.userId;
+        }
+
+        // Или из meta-тега
+        const metaElement = document.querySelector('meta[name="current-user-id"]');
+        if (metaElement) {
+            return metaElement.getAttribute('content');
+        }
+
+        console.warn('Не удалось найти ID текущего пользователя');
+        return '';
+    }
+
     /**
      * Обработка переключения пользователя
      * @param {string} userId - ID пользователя
@@ -47,8 +70,11 @@ export class UserManager {
             const data = await this.apiService.switchUser(userId);
 
             if (data.status === 'success') {
-                this.currentUserInfo = data.message;
+                this.currentUserInfo = '';
                 this.updateUserInfoDisplay();
+
+                // 👇 ДОБАВЬТЕ ЭТУ СТРОКУ - сохраняем выбор
+                this.saveUserSelection(userId);
 
                 // Создаем событие для уведомления других модулей
                 this.dispatchUserChangedEvent(userId);
@@ -59,6 +85,46 @@ export class UserManager {
         } catch (error) {
             console.error('Ошибка переключения пользователя:', error);
             alert('Ошибка: ' + error.message);
+        }
+    }
+
+    /**
+     * Сохраняет выбранного пользователя в localStorage
+     */
+    saveUserSelection(userId) {
+        try {
+            localStorage.setItem('selectedUserId', userId);
+        } catch (error) {
+            console.warn('Не удалось сохранить выбор пользователя:', error);
+        }
+    }
+
+    /**
+     * Загружает сохраненного пользователя из localStorage
+     */
+    loadUserSelection() {
+        try {
+            return localStorage.getItem('selectedUserId') || 'self';
+        } catch (error) {
+            console.warn('Не удалось загрузить выбор пользователя:', error);
+            return 'self';
+        }
+    }
+
+    /**
+     * Восстанавливает выбранного пользователя при загрузке
+     */
+    async restoreUserSelection() {
+        const savedUserId = this.loadUserSelection();
+        const userSelect = document.getElementById('user-select');
+
+        if (userSelect && savedUserId) {
+            userSelect.value = savedUserId;
+
+            // Если выбран не "self", применяем выбор
+            if (savedUserId !== 'self') {
+                await this.handleUserSwitch(savedUserId);
+            }
         }
     }
     /**

@@ -76,6 +76,13 @@ def save_event(request):
             try:
                 event = ScheduleEvent.objects.get(id=event_id, user=target_user)
 
+                # ОБНОВЛЕННАЯ ПРОВЕРКА ПРАВ ДОСТУПА - суперпользователь может всё
+                if not request.user.is_superuser and event.created_by != request.user:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': 'Недостаточно прав для редактирования этого события'
+                    }, status=403)
+
                 # Если событие становится регулярным (было нерегулярным, стало регулярным)
                 if not event.is_recurring and is_recurring:
                     # Создаем новую серию
@@ -204,7 +211,8 @@ def save_event(request):
                 color=color,
                 is_recurring=is_recurring,
                 duration=duration,
-                series_id=series
+                series_id=series,
+                created_by=request.user
             )
             created = True
             # Если это регулярное занятие — создаём будущие
@@ -264,7 +272,7 @@ def load_events(request):
         events=ScheduleEvent.objects.filter(
             user=target_user,
             date__range=[date_from_obj,date_to_obj]
-        )
+        ).select_related('created_by', 'user')
 
         events_data=[]
         for event in events:
@@ -277,7 +285,9 @@ def load_events(request):
                 'text': event.text,
                 'color': event.color,
                 'is_recurring': event.is_recurring,
-                'duration': float(event.duration)
+                'duration': float(event.duration),
+                'created_by': event.created_by.id,  # ← ДОБАВЬТЕ ЭТО
+                'user_id': event.user.id  # ← ДОБАВЬТЕ ЭТО
             })
         return  JsonResponse({'status': 'success', 'events': events_data})
 

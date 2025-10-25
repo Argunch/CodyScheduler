@@ -1,0 +1,130 @@
+/* Стили для модального окна просмотра */
+#event-view-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    z-index: 1000;
+    min-width: 500px;
+    max-width: 500px;
+    overflow: hidden; /* Скрываем переполнение самого модального окна */
+}
+
+#view-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+}
+
+/* Заголовок модального окна */
+#event-view-modal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+#event-view-modal .modal-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+#event-view-modal .close {
+    cursor: pointer;
+    font-size: 24px;
+    font-weight: bold;
+    color: #999;
+    background: none;
+    border: none;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+#event-view-modal .close:hover {
+    background-color: #f5f5f5;
+    color: #666;
+}
+
+/* Информация о времени */
+#view-time-info {
+    background: #f8f9fa;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    border-left: 4px solid #279FF5;
+    font-weight: 500;
+    color: #333;
+}
+
+/* Группы полей формы */
+#event-view-modal .form-group {
+    margin-bottom: 15px;
+}
+
+#event-view-modal .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #555;
+    font-size: 14px;
+}
+
+/* Стили для текстовых полей только для чтения */
+.view-text {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #f9f9f9;
+    min-height: 60px;
+    line-height: 1.4;
+    color: #333;
+    font-family: inherit;
+    resize: none;
+    overflow-y: auto;
+}
+
+.view-duration {
+    padding: 8px 12px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    color: #333;
+    font-weight: 500;
+}
+
+/* Состояние пустого текста */
+.view-text:empty::before {
+    content: "(без текста)";
+    color: #999;
+    font-style: italic;
+}
+
+/* Адаптивность */
+@media (max-width: 600px) {
+    #event-view-modal {
+        min-width: 280px;
+        max-width: 90%;
+        margin: 20px;
+        padding: 15px;
+    }
+}

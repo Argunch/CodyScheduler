@@ -5,8 +5,8 @@
     margin-bottom: 20px;
     padding: 10px;
     border-radius: 5px;
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    overflow-x: visible;
     white-space: nowrap;
 }
 
@@ -34,4 +34,55 @@
     min-width: 200px;
     text-align: center;
 }
+
+@media (max-width: 768px) {
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* Обёртка ограничивает ширину */
+  .over-schedule-wrapper {
+    width: 100%;
+    max-width: 100vw;
+    overflow: hidden; /* 🔥 обрезает всё, что вылезает */
+    box-sizing: border-box;
+    margin: 0 auto;
+  }
+
+  .over_schedule {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    gap: 6px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .over_schedule::-webkit-scrollbar {
+    display: none;
+  }
+
+  .over_schedule > * {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  html, body { overflow-x: hidden !important; width: 100% !important; max-width: 100vw !important; }
+  .over-schedule-wrapper { overflow: hidden !important; width: 100% !important; max-width: 100vw !important; position: relative; }
+  /* грубый but safe: запрещаем любому прямому ребёнку body раздувать ширину */
+  body > * { max-width: 100vw !important; box-sizing: border-box !important; }
+}
+
 

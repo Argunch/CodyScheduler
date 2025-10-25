@@ -6,7 +6,9 @@ export const EVENT_FIELDS={
     DURATION: 'duration',
     COLOR: 'color',
     TEXT: 'text',
-    OVERLAY: 'overlay'
+    OVERLAY: 'overlay',
+    CREATED_BY: 'created_by', // ← ДОБАВЛЕНО
+    CAN_EDIT: 'canEdit' // ← ДОБАВЛЕНО
 }
 
 export const EVENT_DEFAULTS={
@@ -21,5 +23,7 @@ export const DATA_ATTRIBUTES={
     TIME: 'data-time',
     DURATION: 'data-duration',
     COLOR: 'data-color',
-    RECURRING: 'data-recurring'
+    RECURRING: 'data-recurring',
+    CREATED_BY: 'data-created-by', // ← ДОБАВЛЕНО
+    CAN_EDIT: 'data-can-edit' // ← ДОБАВЛЕНО
 }

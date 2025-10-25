@@ -11,6 +11,8 @@ class ScheduleEvent(models.Model):
     is_recurring = models.BooleanField(default=False)
     series_id = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     duration = models.FloatField(default=1.0, help_text="Duration in hours")
+    created_by = models.ForeignKey(User,on_delete=models.CASCADE,related_name='created_events',verbose_name='Создатель',
+                                   default=1)
 
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at=models.DateTimeField(auto_now=True)

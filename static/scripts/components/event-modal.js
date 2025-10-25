@@ -112,9 +112,10 @@ export class EventModal {
         this.elements.daysOverlay.style.display = 'none';
     }
 
-    show(eventData=null,cell=null) {
+    show(eventData=null,cell=null, targetUserId = null) {
         this.currentCell = cell;
         this.selectedColor = null;
+        this.targetUserId = targetUserId; // ← СОХРАНЯЕМ
         this.isEditing = !!eventData;
 
         // Сбрасываем состояние
@@ -160,8 +161,25 @@ export class EventModal {
         this.isEditing = false;
     }
 
+    /**
+     * Получить ID текущего пользователя
+     */
+    getCurrentUserId() {
+        const userElement = document.querySelector('[data-user-id]');
+        return userElement ? userElement.dataset.userId : null;
+    }
+
     async save() {
         const eventData = this.getFormData();
+
+        // ДОБАВЛЯЕМ: Устанавливаем created_by и canEdit для новых событий
+        if (!this.isEditing) {
+            const currentUserId = this.getCurrentUserId();
+            if (currentUserId) {
+                eventData.created_by = Number(currentUserId);
+                eventData.canEdit = true;
+            }
+        }
 
         // Используем валидацию из DTO
         const dto = new EventDTO(eventData);
@@ -174,6 +192,11 @@ export class EventModal {
 
         // Сохраняем продолжительность
         storageUtils.saveLastDuration(this.elements.durationInput.value);
+
+        //Передаем target_user_id при создании новой заметки в чужом расписании
+        if (!this.isEditing && this.targetUserId) {
+            eventData.target_user_id = this.targetUserId;
+        }
         
         try {
             // ЕСЛИ ВЫБРАНЫ ДНИ - создаем события для каждого дня
@@ -209,6 +232,15 @@ export class EventModal {
     async saveMultipleEvents(baseEventData) {
         const baseDate = new Date(baseEventData.date);
 
+        // ДОБАВЛЯЕМ: Устанавливаем created_by для всех событий серии
+        if (!this.isEditing) {
+            const currentUserId = this.getCurrentUserId();
+            if (currentUserId) {
+                baseEventData.created_by = Number(currentUserId);
+                baseEventData.canEdit = true;
+            }
+        }
+
         // Получаем даты для всех выбранных дней на текущей неделе
         const targetDates = this.getDatesForSelectedDays(baseDate);
 
@@ -218,7 +250,8 @@ export class EventModal {
             const eventForDay = {
                 ...baseEventData,
                 id: null, // Новое событие
-                date: targetDate
+                date: targetDate,
+                target_user_id: this.targetUserId
             };
 
             // Сохраняем событие
@@ -375,6 +408,11 @@ export class EventModal {
             [EVENT_FIELDS.DURATION]: duration,
             [EVENT_FIELDS.START_MINUTES]: parseInt(this.elements.startMinutesInput.value) || 0
         };
+
+        // ДОБАВЛЯЕМ: Передаем target_user_id при создании новой заметки в чужом расписании
+        if (!this.isEditing && this.targetUserId) {
+            formData.target_user_id = this.targetUserId; // ← это отдельное поле, не из EVENT_FIELDS
+        }
 
         if (this.isEditing) {
             // При редактировании - берем из данных события

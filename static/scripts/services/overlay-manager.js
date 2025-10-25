@@ -120,12 +120,19 @@ export class OverlayManager {
             [DATA_ATTRIBUTES.DATE]: dto.date,
             [DATA_ATTRIBUTES.DURATION]: dto.duration,
             [DATA_ATTRIBUTES.COLOR]: dto.color,
-            [DATA_ATTRIBUTES.RECURRING]: dto.is_recurring
+            [DATA_ATTRIBUTES.RECURRING]: dto.is_recurring,
+            [DATA_ATTRIBUTES.CREATED_BY]: dto.created_by, // ← ДОБАВЛЕНО
+            [DATA_ATTRIBUTES.CAN_EDIT]: dto.canEdit // ← ДОБАВЛЕНО
         };
 
         Object.entries(attributes).forEach(([key, value]) => {
             overlay.setAttribute(key, value);
         });
+
+        // Добавляем класс для нередактируемых событий
+        if (!dto.canEdit) {
+            overlay.classList.add('non-editable');
+        }
     }
 
     /**
@@ -192,17 +199,44 @@ export class OverlayManager {
      * @param {Object} eventData - Данные события
      */
     handleOverlayClick(overlay, eventData) {
-        // Создаем событие для уведомления других компонентов
-        const overlayClickEvent = new CustomEvent('overlayClick', {
-            detail: {
-                overlay: overlay,
-                eventData: this.getEventDataFromOverlay(overlay),
-                originalEventData: eventData
-            },
-            bubbles: true
-        });
+        // Получаем данные события
+        const eventDataFromOverlay = this.getEventDataFromOverlay(overlay);
+         // Проверяем, может ли пользователь редактировать это событие
+        if (!eventDataFromOverlay.canEdit) {
+            // Если не может редактировать - показываем окно просмотра
+            const viewEvent = new CustomEvent('overlayView', {
+                detail: {
+                    overlay: overlay,
+                    eventData: eventDataFromOverlay,
+                    originalEventData: eventData
+                },
+                bubbles: true
+            });
+            overlay.dispatchEvent(viewEvent);
+        } else {
+            // Если может редактировать - показываем обычное модальное окно
+            // Создаем событие для уведомления других компонентов
+            const overlayClickEvent = new CustomEvent('overlayClick', {
+                detail: {
+                    overlay: overlay,
+                    eventData: this.getEventDataFromOverlay(overlay),
+                    originalEventData: eventData
+                },
+                bubbles: true
+            });
+            overlay.dispatchEvent(overlayClickEvent);
+        }
 
-        overlay.dispatchEvent(overlayClickEvent);
+
+
+    }
+
+        /**
+     * Получить ID текущего пользователя
+     */
+    getCurrentUserId() {
+        const userElement = document.querySelector('[data-user-id]');
+        return userElement ? userElement.dataset.userId : '';
     }
 
     /**
@@ -342,8 +376,11 @@ export class OverlayManager {
             [EVENT_FIELDS.DURATION]: parseFloat(overlay.getAttribute(DATA_ATTRIBUTES.DURATION) || EVENT_DEFAULTS.DURATION),
             [EVENT_FIELDS.START_MINUTES]: parseInt(overlay.getAttribute(DATA_ATTRIBUTES.START_MINUTES) || EVENT_DEFAULTS.START_MINUTES),
             [EVENT_FIELDS.IS_RECURRING]: overlay.getAttribute(DATA_ATTRIBUTES.RECURRING) === 'true',
+            [EVENT_FIELDS.CREATED_BY]: overlay.getAttribute(DATA_ATTRIBUTES.CREATED_BY), // ← проверяем этот атрибут
+            [EVENT_FIELDS.CAN_EDIT]: overlay.getAttribute(DATA_ATTRIBUTES.CAN_EDIT), // ← и этот
             [EVENT_FIELDS.OVERLAY]: overlay
         };
+
         return new EventDTO(rawData);
     }
 

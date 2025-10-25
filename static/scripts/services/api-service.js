@@ -95,7 +95,14 @@ export class ApiService {
             const data = await response.json();
 
             if (data.status === 'success') {
-                return data.events;
+                // Добавляем информацию о текущем пользователе к каждому событию
+                const currentUserId = this.getCurrentUserId();
+                const events = data.events.map(event => ({
+                    ...event,
+                    currentUserId: currentUserId,
+                    canEdit: this.canUserEditEvent(event, currentUserId)
+                }));
+                return events;
             } else {
                 throw new Error(data.message || 'Ошибка загрузки событий');
             }
@@ -103,6 +110,54 @@ export class ApiService {
             console.error('Ошибка при загрузке событий:', error);
             throw new Error(`Сетевая ошибка: ${error.message}`);
         }
+    }
+
+    /**
+     * Проверить, может ли пользователь редактировать событие
+     */
+    canUserEditEvent(event, currentUserId) {
+        // Суперпользователь может редактировать всё
+        if (this.isSuperUser()) {
+            return true;
+        }
+
+        // Пользователь может редактировать только свои события
+        return event.created_by && event.created_by.toString() === currentUserId.toString();
+    }
+
+    /**
+     * Проверить, является ли пользователь суперпользователем
+     */
+    isSuperUser() {
+        // Проверяем через data-атрибут или meta-тег
+        const userElement = document.querySelector('[data-is-superuser]');
+        if (userElement) {
+            return userElement.dataset.isSuperuser === 'true';
+        }
+
+        const metaElement = document.querySelector('meta[name="is-superuser"]');
+        if (metaElement) {
+            return metaElement.getAttribute('content') === 'true';
+        }
+
+        return false;
+    }
+
+    /**
+     * Получить ID текущего пользователя
+     */
+    getCurrentUserId() {
+        const userElement = document.querySelector('[data-user-id]');
+        if (userElement) {
+            return userElement.dataset.userId;
+        }
+
+        const metaElement = document.querySelector('meta[name="current-user-id"]');
+        if (metaElement) {
+            return metaElement.getAttribute('content');
+        }
+
+        return '';
     }
 
     /**

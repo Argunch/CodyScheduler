@@ -2,6 +2,7 @@ import { ApiService } from './api-service.js';
 import { OverlayManager } from './overlay-manager.js';
 
 import { EventModal } from '../components/event-modal.js';
+import { EventViewModal } from '../components/event-view-modal.js';
 import { domUtils } from '../utils/utils.js';
 
 export class EventManager {
@@ -10,6 +11,7 @@ export class EventManager {
         this.apiService = options.apiService || new ApiService();
         this.overlayManager = options.overlayManager || new OverlayManager();
         this.eventModal = new EventModal(this.apiService, this.overlayManager);
+        this.eventViewModal = new EventViewModal();
 
         // Состояние приложения
         this.currentWeek = options.currentWeek || null;
@@ -23,7 +25,6 @@ export class EventManager {
         this.handleResize = this.handleResize.bind(this);
         this.handleKeydown = this.handleKeydown.bind(this);
         this.handleOverlayClick = this.handleOverlayClick.bind(this);
-
 
         this.initPromise = this.init();
     }
@@ -106,10 +107,34 @@ export class EventManager {
     handleOverlayClick(event) {
         const { overlay, eventData } = event.detail;
         try {
-            this.eventModal.show(eventData);
+            // Проверяем, можно ли редактировать событие
+            if (!this.canEditEvent(overlay, eventData)) {
+                console.log('Редактирование запрещено: событие создано другим пользователем');
+                this.eventViewModal.show(eventData);
+            }
+            else
+            {
+                this.eventModal.show(eventData);
+            }
         } catch (error) {
             console.error('Ошибка при обработке клика по overlay:', error);
         }
+    }
+
+
+    /**
+     * Проверить, можно ли редактировать событие
+     */
+    canEditEvent(overlay, eventData) {
+        // Получаем флаг canEdit из data-атрибута или из eventData
+        const canEdit = overlay.getAttribute('data-can-edit') === 'true' ||
+                       eventData.canEdit === true;
+
+        if (!canEdit) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -191,8 +216,13 @@ export class EventManager {
             console.warn('EventManager не инициализирован');
             return;
         }
+
+        // ОПРЕДЕЛЯЕМ, В ЧЬЁ РАСПИСАНИЕ ДОБАВЛЯЕМ ЗАМЕТКУ
+        const userSelect = document.getElementById('user-select');
+        const targetUserId = userSelect && userSelect.value !== 'self' ? userSelect.value : null;
+
         // Создание нового события
-        this.eventModal.show(null,cell);
+        this.eventModal.show(null, cell, targetUserId);
     }
 
 
