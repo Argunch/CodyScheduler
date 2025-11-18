@@ -1,6 +1,7 @@
-import { domUtils } from '../utils/utils.js';
+import { domUtils, eventUtils } from '../utils/utils.js';
 import { EventDTO } from '../models/event-dto.js';
-import { EVENT_FIELDS, DATA_ATTRIBUTES, EVENT_DEFAULTS} from '../constants/event-fields.js';
+import { EVENT_FIELDS, DATA_ATTRIBUTES, EVENT_STRUCTURE, DATA_ATTRIBUTE_MAPPING } from '../constants/event-fields.js';
+
 
 export class OverlayManager {
     constructor() {
@@ -112,21 +113,14 @@ export class OverlayManager {
      * @param {Object} eventData - Данные события
      */
     setOverlayAttributes(overlay, eventData) {
-        const dto=new EventDTO(eventData);
+        const dto = new EventDTO(eventData);
 
-        const attributes = {
-            [DATA_ATTRIBUTES.ID]: dto.id,
-            [DATA_ATTRIBUTES.TIME]: dto.time,
-            [DATA_ATTRIBUTES.DATE]: dto.date,
-            [DATA_ATTRIBUTES.DURATION]: dto.duration,
-            [DATA_ATTRIBUTES.COLOR]: dto.color,
-            [DATA_ATTRIBUTES.RECURRING]: dto.is_recurring,
-            [DATA_ATTRIBUTES.CREATED_BY]: dto.created_by, // ← ДОБАВЛЕНО
-            [DATA_ATTRIBUTES.CAN_EDIT]: dto.canEdit // ← ДОБАВЛЕНО
-        };
-
-        Object.entries(attributes).forEach(([key, value]) => {
-            overlay.setAttribute(key, value);
+        // Автоматически устанавливаем все атрибуты из маппинга
+        Object.entries(DATA_ATTRIBUTE_MAPPING).forEach(([attr, field]) => {
+            const value = dto[field];
+            if (value !== null && value !== undefined) {
+                overlay.setAttribute(attr, value.toString());
+            }
         });
 
         // Добавляем класс для нередактируемых событий
@@ -180,7 +174,7 @@ export class OverlayManager {
         // Обработчик клика для редактирования
         overlay.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.handleOverlayClick(overlay, eventData);
+            this.emitOverlayClick(overlay, eventData);
         });
 
         // Дополнительные события можно добавить здесь
@@ -193,42 +187,18 @@ export class OverlayManager {
         });
     }
 
-    /**
-     * Обработчик клика по overlay
-     * @param {HTMLElement} overlay - Overlay элемент
-     * @param {Object} eventData - Данные события
-     */
-    handleOverlayClick(overlay, eventData) {
-        // Получаем данные события
-        const eventDataFromOverlay = this.getEventDataFromOverlay(overlay);
-         // Проверяем, может ли пользователь редактировать это событие
-        if (!eventDataFromOverlay.canEdit) {
-            // Если не может редактировать - показываем окно просмотра
-            const viewEvent = new CustomEvent('overlayView', {
-                detail: {
-                    overlay: overlay,
-                    eventData: eventDataFromOverlay,
-                    originalEventData: eventData
-                },
-                bubbles: true
-            });
-            overlay.dispatchEvent(viewEvent);
-        } else {
-            // Если может редактировать - показываем обычное модальное окно
-            // Создаем событие для уведомления других компонентов
-            const overlayClickEvent = new CustomEvent('overlayClick', {
-                detail: {
-                    overlay: overlay,
-                    eventData: this.getEventDataFromOverlay(overlay),
-                    originalEventData: eventData
-                },
-                bubbles: true
-            });
-            overlay.dispatchEvent(overlayClickEvent);
-        }
-
-
-
+    emitOverlayClick(overlay, eventData) {
+        const eventDataFromOverlay = eventUtils.extractEventFromOverlay(overlay);
+        
+        const overlayClickEvent = new CustomEvent('overlayClicked', { // переименовали событие
+            detail: {
+                overlay: overlay,
+                eventData: eventDataFromOverlay,
+                originalEventData: eventData
+            },
+            bubbles: true
+        });
+        overlay.dispatchEvent(overlayClickEvent);
     }
 
         /**
@@ -360,30 +330,6 @@ export class OverlayManager {
                 `.event-item[data-date="${date}"][data-time="${time}"]`
             ));
     }
-
-    /**
-     * Получить данные события из overlay
-     * @param {HTMLElement} overlay - Overlay элемент
-     * @returns {Object} Данные события
-     */
-    getEventDataFromOverlay(overlay) {
-        const rawData = {
-            [EVENT_FIELDS.ID]: overlay.getAttribute(DATA_ATTRIBUTES.ID),
-            [EVENT_FIELDS.DATE]: overlay.getAttribute(DATA_ATTRIBUTES.DATE),
-            [EVENT_FIELDS.TIME]: overlay.getAttribute(DATA_ATTRIBUTES.TIME),
-            [EVENT_FIELDS.TEXT]: overlay.textContent,
-            [EVENT_FIELDS.COLOR]: overlay.getAttribute(DATA_ATTRIBUTES.COLOR),
-            [EVENT_FIELDS.DURATION]: parseFloat(overlay.getAttribute(DATA_ATTRIBUTES.DURATION) || EVENT_DEFAULTS.DURATION),
-            [EVENT_FIELDS.START_MINUTES]: parseInt(overlay.getAttribute(DATA_ATTRIBUTES.START_MINUTES) || EVENT_DEFAULTS.START_MINUTES),
-            [EVENT_FIELDS.IS_RECURRING]: overlay.getAttribute(DATA_ATTRIBUTES.RECURRING) === 'true',
-            [EVENT_FIELDS.CREATED_BY]: overlay.getAttribute(DATA_ATTRIBUTES.CREATED_BY), // ← проверяем этот атрибут
-            [EVENT_FIELDS.CAN_EDIT]: overlay.getAttribute(DATA_ATTRIBUTES.CAN_EDIT), // ← и этот
-            [EVENT_FIELDS.OVERLAY]: overlay
-        };
-
-        return new EventDTO(rawData);
-    }
-
     /**
      * Получить количество overlay
      * @returns {number} Количество overlay
@@ -400,5 +346,73 @@ export class OverlayManager {
     exists(eventId) {
         return this.overlays.has(eventId) ||
                !!document.querySelector(`.event-item[data-id="${eventId}"]`);
+    }
+
+
+    /**
+     * Получить данные текущей видимой недели из DOM
+     */
+    getCurrentWeekData() {
+        const dateCells = document.querySelectorAll('.schedule-cell[data-date]');
+        if (dateCells.length === 0) {
+            console.warn('Ячейки расписания не найдены');
+            return null;
+        }
+        
+        const dates = Array.from(dateCells).map(cell => 
+            cell.getAttribute('data-date')
+        ).filter((date, index, self) => 
+            date && self.indexOf(date) === index
+        ).sort();
+        
+        return {
+            dateFrom: dates[0],
+            dateTo: dates[dates.length - 1],
+            dates: dates,
+            daysCount: dates.length
+        };
+    }
+
+    /**
+     * Обновить overlays для текущей недели (легкая версия)
+     */
+    refreshCurrentWeek() {
+        console.log('🔄 Обновление overlays текущей недели...');
+        
+        const weekData = this.getCurrentWeekData();
+        if (!weekData) {
+            console.warn('Не удалось получить данные недели для обновления');
+            return;
+        }
+        
+        // Удаляем только overlays текущей недели
+        this.removeOverlaysForDates(weekData.dates);
+        
+        console.log(`✅ Удалены overlays для ${weekData.daysCount} дней`);
+        // Новые overlays создадутся при следующем клике или через API
+    }
+
+    /**
+     * Удалить overlays для определенных дат
+     */
+    removeOverlaysForDates(dates) {
+        let removedCount = 0;
+        
+        dates.forEach(date => {
+            const overlaysForDate = document.querySelectorAll(
+                `.event-item[data-date="${date}"]`
+            );
+            
+            overlaysForDate.forEach(overlay => {
+                const eventId = overlay.getAttribute('data-id');
+                if (eventId) {
+                    this.overlays.delete(eventId);
+                }
+                overlay.remove();
+                removedCount++;
+            });
+        });
+        
+        console.log(`🗑️ Удалено ${removedCount} overlays для ${dates.length} дат`);
     }
 }

@@ -1,17 +1,22 @@
 import { ApiService } from './api-service.js';
 import { OverlayManager } from './overlay-manager.js';
+import { eventStore } from './event-store.js';
+import { eventUtils } from '../utils/utils.js';
+import { EventDTO } from '../models/event-dto.js';
 
 import { EventModal } from '../components/event-modal.js';
 import { EventViewModal } from '../components/event-view-modal.js';
-import { domUtils } from '../utils/utils.js';
 
 export class EventManager {
     constructor(options = {}) {
         // Инициализация сервисов
         this.apiService = options.apiService || new ApiService();
         this.overlayManager = options.overlayManager || new OverlayManager();
-        this.eventModal = new EventModal(this.apiService, this.overlayManager);
+        this.eventModal = new EventModal(this.apiService, this.overlayManager, this);
         this.eventViewModal = new EventViewModal();
+
+        // ДОБАВЛЯЕМ EventStore
+        this.eventStore = eventStore;
 
         // Состояние приложения
         this.currentWeek = options.currentWeek || null;
@@ -24,7 +29,7 @@ export class EventManager {
         // Привязка контекста
         this.handleResize = this.handleResize.bind(this);
         this.handleKeydown = this.handleKeydown.bind(this);
-        this.handleOverlayClick = this.handleOverlayClick.bind(this);
+        this.onOverlayClicked = this.onOverlayClicked.bind(this);
 
         this.initPromise = this.init();
     }
@@ -95,7 +100,7 @@ export class EventManager {
         document.addEventListener('keydown', this.handleKeydown);
 
         // ← ДОБАВЛЕНО: Обработчик кликов по overlay
-        document.addEventListener('overlayClick', this.handleOverlayClick);
+        document.addEventListener('overlayClicked', this.onOverlayClicked);
 
         // Обработчики для модального окна
         this.setupModalHandlers();
@@ -104,20 +109,31 @@ export class EventManager {
     /**
      * Обработчик клика по overlay
      */
-    handleOverlayClick(event) {
-        const { overlay, eventData } = event.detail;
-        try {
-            // Проверяем, можно ли редактировать событие
-            if (!this.canEditEvent(overlay, eventData)) {
-                console.log('Редактирование запрещено: событие создано другим пользователем');
-                this.eventViewModal.show(eventData);
-            }
-            else
-            {
-                this.eventModal.show(eventData);
-            }
-        } catch (error) {
-            console.error('Ошибка при обработке клика по overlay:', error);
+    // handleOverlayClick(event) {
+    //     const { overlay } = event.detail;
+    //     try {
+    //         // ✅ Используем утилиту для извлечения данных
+    //         const extractedEvent = EventUtils.extractEventFromOverlay(overlay);
+            
+    //         if (!extractedEvent.canEdit) {
+    //             console.log('Редактирование запрещено');
+    //             this.eventViewModal.show(extractedEvent);
+    //         } else {
+    //             this.eventModal.show(extractedEvent);
+    //         }
+    //     } catch (error) {
+    //         console.error('Ошибка при обработке клика по overlay:', error);
+    //     }
+    // }
+
+    onOverlayClicked(event) {
+        const { eventData } = event.detail;
+        
+        // Вся бизнес-логика здесь
+        if (!eventData.canEdit) {
+            this.eventViewModal.show(eventData);
+        } else {
+            this.eventModal.show(eventData);
         }
     }
 
@@ -251,6 +267,10 @@ export class EventManager {
             // Загружаем события с сервера
             const events = await this.apiService.loadEventsForWeek(targetWeekDays);
 
+            // ✅ СОХРАНЯЕМ В EventStore
+            const normalizedEvents = events.map(event => eventUtils.normalizeEvent(event));
+            this.eventStore.setEvents(normalizedEvents);
+
             // Создаем overlay для каждого события
             events.forEach(event => {
                 this.createEventOverlay(event);
@@ -258,6 +278,71 @@ export class EventManager {
         } catch (error) {
             console.error('Ошибка при загрузке событий:', error);
         }
+    }
+
+    /**
+     * СОЗДАТЬ событие (новая версия с EventStore)
+     * @param {Object} eventData - Данные события
+     */
+    async createEvent(eventData) {
+        try {
+            // ✅ ПРЕДОБРАБОТКА ДАННЫХ ПЕРЕД ОТПРАВКОЙ
+            const processedData = EventDTO.prepareForApi(eventData);
+
+            const response = await this.apiService.saveEvent(processedData);
+            
+            if (response.status === 'success') {
+                // ✅ Используем DTO для объединения данных
+                const eventDTO = EventDTO.mergeWithResponse(processedData, response);
+                
+                // Сохраняем в хранилище
+                const storedEvent = this.eventStore.setEvent(eventDTO);
+                
+                // Создаем overlay
+                this.createEventOverlay(storedEvent);
+                
+                // console.log('✅ Событие создано и сохранено в EventStore:', storedEvent);
+                return storedEvent;
+            }
+            throw new Error(response.message);
+        } catch (error) {
+            console.error('❌ Ошибка создания события:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Подготовить данные события перед отправкой
+     */
+    prepareEventData(eventData) {
+        const processedData = { ...eventData };
+        
+        // ✅ ГЕНЕРИРУЕМ series_id ДЛЯ РЕГУЛЯРНЫХ СОБЫТИЙ
+        if (processedData.is_recurring && !processedData.series_id) {
+            processedData.series_id = EventDTO.generateSeriesId();
+        }
+        
+        // ✅ УБИРАЕМ series_id ДЛЯ НЕРЕГУЛЯРНЫХ СОБЫТИЙ
+        if (!processedData.is_recurring) {
+            delete processedData.series_id;
+        }
+        
+        // ✅ ОБРАБОТКА NULL ЗНАЧЕНИЙ
+        Object.keys(processedData).forEach(key => {
+            if (processedData[key] === null) {
+                delete processedData[key];
+            }
+        });
+        
+        console.log('📦 Подготовленные данные для отправки:', processedData);
+        return processedData;
+    }
+
+    /**
+     * Генерирует UUID для серии событий
+     */
+    generateSeriesId() {
+        return 'series_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     }
 
     /**
@@ -331,7 +416,7 @@ export class EventManager {
         window.removeEventListener('resize', this.handleResize);
         window.removeEventListener('scroll', this.handleResize);
         document.removeEventListener('keydown', this.handleKeydown);
-        document.removeEventListener('overlayClick', this.handleOverlayClick);
+        document.removeEventListener('overlayClicked', this.onOverlayClicked);
 
         const scheduleWrapper = document.querySelector('.schedule-wrapper');
         if (scheduleWrapper) {

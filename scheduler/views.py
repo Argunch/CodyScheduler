@@ -182,7 +182,6 @@ def save_event(request):
                     event.color = color
                     event.is_recurring = False
                     event.duration = duration
-                    event.series_id = uuid.uuid4()  # уникальный ID для одиночного события
                     event.save()
 
                 else:
@@ -196,38 +195,53 @@ def save_event(request):
                     event.save()
 
                 created = False
-
+                return JsonResponse({'status': 'success', 'created': created, 'id': event.id})
             except ScheduleEvent.DoesNotExist:
                 return JsonResponse({'status': 'error', 'message': 'Событие не найдено'})
+            
         else:
-            # --- Если id нет → создаём новое событие
-            import uuid
-            series = uuid.uuid4()
-            event = ScheduleEvent.objects.create(
-                user=target_user,
-                date=date_obj,
-                time=time_obj,
-                text=text,
-                color=color,
-                is_recurring=is_recurring,
-                duration=duration,
-                series_id=series,
-                created_by=request.user
-            )
             created = True
+            if is_recurring==False:
+                # --- Если id нет → создаём новое событие
+                event = ScheduleEvent.objects.create(
+                    user=target_user,
+                    date=date_obj,
+                    time=time_obj,
+                    text=text,
+                    color=color,
+                    is_recurring=is_recurring,
+                    duration=duration,
+                    created_by=request.user
+                )
+                return JsonResponse({'status': 'success', 'created': created, 'id': event.id})
             # Если это регулярное занятие — создаём будущие
-            if is_recurring:
+            else:
+                import uuid
+                series = uuid.uuid4()
+                # Создаем ПЕРВОЕ событие серии
+                first_event = ScheduleEvent.objects.create(
+                    user=target_user,
+                    date=date_obj,
+                    time=time_obj,
+                    text=text,
+                    color=color,
+                    is_recurring=True,  # ← важно!
+                    duration=duration,
+                    series_id=series,   # ← устанавливаем series_id
+                    created_by=request.user
+                )
+                
+                # Создаем остальные события серии (начиная со следующей недели)
                 create_recurring_events(
                     target_user,
-                    date_obj,
+                    date_obj,  # ← начинаем со следующей недели
                     time_obj,
                     text,
                     color,
                     duration,
                     series,
                 )
-
-        return JsonResponse({'status': 'success', 'created': created, 'id': event.id})
+                return JsonResponse({'status': 'success', 'created': created, 'id': first_event.id, 'series_id': str(series)})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
 
@@ -280,6 +294,7 @@ def load_events(request):
 
             events_data.append({
                 'id': event.id,
+                'series_id': str(event.series_id),
                 'date':event.date.strftime('%Y-%m-%d'),
                 'time':time_str,
                 'text': event.text,
@@ -293,7 +308,147 @@ def load_events(request):
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
+    
+@csrf_exempt
+@login_required
+def load_series_events(request):
+    try:
+        target_user = get_target_user(request)
+        series_id = request.GET.get('series_id')
+        
+        if not series_id:
+            return JsonResponse({'status': 'error', 'message': 'series_id обязателен'})
 
+        # Ищем все события с таким series_id для целевого пользователя
+        events = ScheduleEvent.objects.filter(
+            user=target_user,
+            series_id=series_id
+        ).select_related('created_by', 'user')
+
+        events_data = []
+        for event in events:
+            time_str = event.time.strftime('%H:%M')
+
+            events_data.append({
+                'id': event.id,
+                'series_id': str(event.series_id),
+                'date': event.date.strftime('%Y-%m-%d'),
+                'time': time_str,
+                'text': event.text,
+                'color': event.color,
+                'is_recurring': event.is_recurring,
+                'duration': float(event.duration),
+                'created_by': event.created_by.id,
+                'user_id': event.user.id
+            })
+        
+        return JsonResponse({'status': 'success', 'events': events_data})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+
+@csrf_exempt
+@login_required
+def check_event_conflict(request):
+    """Проверить конфликт событий при создании/переносе"""
+    try:
+        target_user = get_target_user(request)
+        
+        date_str = request.GET.get('date')
+        time_str = request.GET.get('time')
+        duration = request.GET.get('duration')
+        exclude_event_id = request.GET.get('exclude_event_id')
+        
+        if not all([date_str, time_str, duration]):
+            return JsonResponse({
+                'status': 'error', 
+                'message': 'Отсутствуют обязательные параметры: date, time, duration'
+            }, status=400)
+
+        from datetime import datetime, timedelta
+        
+        # Парсим дату и время
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        # Парсим время - поддерживаем разные форматы
+        time_obj = None
+        time_formats = ['%H:%M:%S', '%H:%M', '%H']
+        for fmt in time_formats:
+            try:
+                time_obj = datetime.strptime(time_str, fmt).time()
+                break
+            except ValueError:
+                continue
+        
+        if time_obj is None:
+            return JsonResponse({
+                'status': 'error', 
+                'message': 'Неверный формат времени'
+            }, status=400)
+        
+        # Конвертируем продолжительность
+        try:
+            duration_hours = float(duration)
+        except ValueError:
+            return JsonResponse({
+                'status': 'error', 
+                'message': 'Неверный формат продолжительности'
+            }, status=400)
+        
+        # Вычисляем время окончания события
+        start_datetime = datetime.combine(date_obj, time_obj)
+        end_datetime = start_datetime + timedelta(hours=duration_hours)
+        end_time = end_datetime.time()
+        
+        # Ищем конфликтующие события
+        conflicting_events = ScheduleEvent.objects.filter(
+            user=target_user,
+            date=date_obj
+        )
+        
+        # Исключаем текущее событие из проверки (если указано)
+        if exclude_event_id:
+            conflicting_events = conflicting_events.exclude(id=exclude_event_id)
+        
+        # Проверяем каждое событие на пересечение по времени
+        conflicts = []
+        for event in conflicting_events:
+            event_start = datetime.combine(date_obj, event.time)
+            event_end = event_start + timedelta(hours=float(event.duration))
+            
+            # Проверяем пересечение интервалов
+            if (start_datetime < event_end and end_datetime > event_start):
+                conflicts.append({
+                    'id': event.id,
+                    'text': event.text,
+                    'time': event.time.strftime('%H:%M'),
+                    'duration': float(event.duration),
+                    'color': event.color
+                })
+        
+        if conflicts:
+            conflict_messages = []
+            for conflict in conflicts:
+                conflict_messages.append(
+                    f"{conflict['text']} ({conflict['time']}, {conflict['duration']}ч)"
+                )
+            
+            return JsonResponse({
+                'hasConflict': True,
+                'message': f'Конфликт с событиями: {", ".join(conflict_messages)}',
+                'conflictingEvents': conflicts
+            })
+        else:
+            return JsonResponse({
+                'hasConflict': False,
+                'message': 'Конфликтов не обнаружено'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error', 
+            'message': f'Ошибка при проверке конфликта: {str(e)}'
+        }, status=500)
 
 @csrf_exempt
 @require_POST

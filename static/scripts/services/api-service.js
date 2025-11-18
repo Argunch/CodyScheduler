@@ -113,6 +113,56 @@ export class ApiService {
     }
 
     /**
+     * Загрузить события для текущей недели
+     * @param {Array} weekDays - Массив дней недели
+     * @returns {Promise<Array>} Массив событий
+     */
+    async loadEventsForWeek(weekDays) {
+        if (!weekDays || weekDays.length === 0) {
+            console.warn('Не переданы дни недели для загрузки');
+            return [];
+        }
+
+        const dateFrom = weekDays[0].date;
+        const dateTo = weekDays[weekDays.length - 1].date;
+
+        return await this.loadEvents(dateFrom, dateTo);
+    }
+
+    /**
+     * Загрузить события серии по series_id
+     * @param {string} seriesId - ID серии
+     * @returns {Promise<Array>} Массив событий серии
+     */
+    async loadSeriesEvents(seriesId) {
+        try {
+            const response = await fetch(
+                `${this.baseUrl}/load-series-events/?series_id=${encodeURIComponent(seriesId)}`,
+                {
+                    headers: {
+                        'X-CSRFToken': this.getCSRFToken(),
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                return data.events;
+            } else {
+                throw new Error(data.message || 'Ошибка загрузки событий серии');
+            }
+        } catch (error) {
+            console.error('Ошибка при загрузке событий серии:', error);
+            throw new Error(`Сетевая ошибка: ${error.message}`);
+        }
+    }
+
+    /**
      * Проверить, может ли пользователь редактировать событие
      */
     canUserEditEvent(event, currentUserId) {
@@ -216,22 +266,7 @@ export class ApiService {
         }
     }
 
-    /**
-     * Загрузить события для текущей недели
-     * @param {Array} weekDays - Массив дней недели
-     * @returns {Promise<Array>} Массив событий
-     */
-    async loadEventsForWeek(weekDays) {
-        if (!weekDays || weekDays.length === 0) {
-            console.warn('Не переданы дни недели для загрузки');
-            return [];
-        }
-
-        const dateFrom = weekDays[0].date;
-        const dateTo = weekDays[weekDays.length - 1].date;
-
-        return await this.loadEvents(dateFrom, dateTo);
-    }
+    
 
     /**
      * Получить CSRF токен
@@ -260,6 +295,7 @@ export class ApiService {
         return dto.toApiFormat();
     }
 
+
     /**
      * Проверить соединение с сервером
      * @returns {Promise<boolean>} true если сервер доступен
@@ -274,6 +310,47 @@ export class ApiService {
         } catch (error) {
             console.warn('Сервер недоступен:', error);
             return false;
+        }
+    }
+
+    /**
+     * Проверить конфликт событий
+     * @param {string} date - Дата (YYYY-MM-DD)
+     * @param {string} time - Время (HH:MM)
+     * @param {number} duration - Продолжительность в часах
+     * @param {string} excludeEventId - ID события для исключения из проверки
+     * @returns {Promise<Object>} Результат проверки конфликта
+     */
+    async checkEventConflict(date, time, duration, excludeEventId = null) {
+        try {
+            const params = new URLSearchParams({
+                date: date,
+                time: time,
+                duration: duration.toString()
+            });
+
+            if (excludeEventId) {
+                params.append('exclude_event_id', excludeEventId);
+            }
+
+            const response = await fetch(
+                `${this.baseUrl}/check-event-conflict/?${params.toString()}`,
+                {
+                    headers: {
+                        'X-CSRFToken': this.getCSRFToken(),
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Ошибка при проверке конфликта:', error);
+            // В случае ошибки сети считаем, что конфликта нет, чтобы не блокировать пользователя
+            return { hasConflict: false, message: '' };
         }
     }
 

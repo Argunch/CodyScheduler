@@ -101,6 +101,8 @@
 
         <button id="select-days-btn" class="btn-days" type="button">Дни недели</button>
 
+        <button id="move-note" style="display: none;">Перенести</button>
+
         <div class="form-group">
             <label>
                 <input type="checkbox" id="is-recurring"> регулярно
@@ -134,6 +136,29 @@
             </div>
         </div>
     </div>
+
+    <!-- Добавим новое модальное окно для переноса -->
+    <div id="move-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Перенести событие</h3>
+            <div class="form-group">
+                <label for="move-date">Дата:</label>
+                <input type="date" id="move-date">
+            </div>
+            <div class="form-group">
+                <label for="move-time">Время:</label>
+                <select id="move-time">
+                    <!-- Опции будут заполнены через JavaScript -->
+                </select>
+            </div>
+            <div class="modal-buttons">
+                <button id="move-modal-ok" class="btn btn-primary">Ок</button>
+                <button id="move-modal-cancel" class="btn btn-secondary">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="move-modal-overlay" class="modal-overlay" style="display: none;"></div>
 
     <!-- Модальное окно просмотра события (только чтение) -->
     <div id="event-view-modal" class="modal">

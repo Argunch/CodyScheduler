@@ -1,4 +1,57 @@
 import { EventDTO } from '../models/event-dto.js';
+import { EVENT_STRUCTURE, DATA_ATTRIBUTE_MAPPING } from '../constants/event-fields.js';
+
+export const eventUtils = {
+    /**
+     * Создать объект события со значениями по умолчанию
+     */
+    createEventTemplate(overrides = {}) {
+        return { ...EVENT_STRUCTURE, ...overrides };
+    },
+
+    /**
+     * Извлечь данные события из overlay элемента
+     */
+    extractEventFromOverlay(overlay) {
+        const rawData = { ...EVENT_STRUCTURE };
+        
+        // Автоматически мапим все data-атрибуты
+        Object.entries(DATA_ATTRIBUTE_MAPPING).forEach(([attr, field]) => {
+            const value = overlay.getAttribute(attr);
+            if (value !== null) {
+                rawData[field] = this._convertValue(field, value);
+            }
+        });
+        
+        // Текст берем из содержимого
+        rawData.text = overlay.textContent || '';
+        
+        // Overlay - это сам элемент
+        rawData.overlay = overlay;
+        
+        return new EventDTO(rawData);
+    },
+
+    /**
+     * Нормализовать данные события
+     */
+    normalizeEvent(eventData) {
+        return { ...EVENT_STRUCTURE, ...eventData };
+    },
+
+    /**
+     * Конвертировать значения из строк в правильные типы
+     */
+    _convertValue(field, value) {
+        if (value === 'true') return true;
+        if (value === 'false') return false;
+        if (field === 'duration') return parseFloat(value) || EVENT_STRUCTURE.duration;
+        if (field === 'is_recurring') return value === 'true';
+        if (field === 'canEdit') return value === 'true';
+        if (field === 'startMinutes') return parseInt(value) || 0;
+        return value;
+    }
+};
 
 export const dateUtils = {
     formatDate(dateString) {

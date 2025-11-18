@@ -9,7 +9,7 @@ class ScheduleEvent(models.Model):
     text=models.TextField(blank=True)
     color=models.CharField(max_length=20,blank=True, default='')
     is_recurring = models.BooleanField(default=False)
-    series_id = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
+    series_id = models.UUIDField(default=None, null=True, blank=True, editable=False, db_index=True)
     duration = models.FloatField(default=1.0, help_text="Duration in hours")
     created_by = models.ForeignKey(User,on_delete=models.CASCADE,related_name='created_events',verbose_name='Создатель',
                                    default=1)

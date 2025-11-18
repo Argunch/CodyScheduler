@@ -1,17 +1,15 @@
-import { EVENT_FIELDS, EVENT_DEFAULTS, DATA_ATTRIBUTES } from '../constants/event-fields.js';
+import { EVENT_FIELDS, EVENT_STRUCTURE, DATA_ATTRIBUTES } from '../constants/event-fields.js';
 
 export class EventDTO {
-    constructor(data) {
-        this.id = data.id;
-        this.date = data.date;
-        this.time = data.time;
-        this.text = data.text || '';
-        this.color = data.color || EVENT_DEFAULTS.COLOR;
-        this.is_recurring = data.is_recurring ?? EVENT_DEFAULTS.IS_RECURRING;
-        this.duration = data.duration ?? EVENT_DEFAULTS.DURATION;
-        this.created_by = data[EVENT_FIELDS.CREATED_BY] || null; // ← ДОБАВЛЕНО
-        this.user_id = data.user_id || null;
+    constructor(data = {}) {
+        Object.keys(EVENT_STRUCTURE).forEach(key => {
+            this[key] = data[key] ?? EVENT_STRUCTURE[key];
+        });
+        
+        this._calculateCanEdit(data);
+    }
 
+    _calculateCanEdit(data) {
         // УЛУЧШЕННАЯ ЛОГИКА: проверяем разные источники данных
         if (data[EVENT_FIELDS.CAN_EDIT] !== undefined) {
             this.canEdit = data[EVENT_FIELDS.CAN_EDIT];
@@ -22,33 +20,56 @@ export class EventDTO {
             // Вычисляем по умолчанию
             this.canEdit = this.created_by && this.created_by.toString() === this.getCurrentUserId();
         }
-        this.target_user_id = data.target_user_id || null;
     }
 
-    // Добавьте метод для получения текущего пользователя
     getCurrentUserId() {
         const userElement = document.querySelector('[data-user-id]');
         return userElement ? userElement.dataset.userId : '';
     }
 
-
     toApiFormat() {
-        const apiData = {
-            [EVENT_FIELDS.ID]: this.id,
-            [EVENT_FIELDS.DATE]: this.date,
-            [EVENT_FIELDS.TIME]: this.time,
-            [EVENT_FIELDS.TEXT]: this.text,
-            [EVENT_FIELDS.COLOR]: this.color,
-            [EVENT_FIELDS.IS_RECURRING]: this.is_recurring,
-            [EVENT_FIELDS.DURATION]: this.duration,
-        };
-
-        // ДОБАВЛЯЕМ: Передаем target_user_id если он есть
-        if (this.target_user_id) {
-            apiData.target_user_id = this.target_user_id; // ← отдельное поле
-        }
-
+        // Автоматически собираем все поля для API
+        const apiData = {};
+        
+        Object.keys(this).forEach(key => {
+            // Исключаем внутренние поля, которые не нужно отправлять на сервер
+            if (!['overlay', 'canEdit'].includes(key)) {
+                apiData[key] = this[key];
+            }
+        });
+        
         return apiData;
+    }
+
+    static prepareForApi(eventData) {
+        const processed = { ...eventData };
+        
+        // ✅ ДЛЯ РЕГУЛЯРНЫХ СОБЫТИЙ: series_id должен быть null
+        // Сервер сам сгенерирует валидный UUID
+        if (processed.is_recurring && !processed.series_id) {
+            processed.series_id = null; // ← важно оставить null для регулярных
+        }
+        
+        // ✅ Удаление series_id для нерегулярных
+        if (!processed.is_recurring) {
+            delete processed.series_id;
+        }
+        
+        // ❌ НЕ УДАЛЯЕМ null значения для series_id!
+        // Очистка null значений только для некоторых полей
+        Object.keys(processed).forEach(key => {
+            // Не очищаем series_id если он null - это важно для регулярных событий
+            if (key !== 'series_id' && processed[key] === null) {
+                delete processed[key];
+            }
+        });
+        
+        // console.log('🔧 Prepared for API:', processed);
+        return processed;
+    }
+
+    static generateSeriesId() {
+        return 'series_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     }
 
     // Добавляем метод для получения минут
@@ -87,4 +108,49 @@ export class EventDTO {
     isValid() {
         return this.validate().length === 0;
     }
+
+    /**
+     * Объединить данные с ответом сервера
+     * @param {Object} frontendData - Данные с фронтенда
+     * @param {Object} serverResponse - Ответ сервера
+     * @returns {EventDTO}
+     */
+    static mergeWithResponse(frontendData, serverResponse) {
+        if (serverResponse.status !== 'success') {
+            return new EventDTO(frontendData);
+        }
+        
+        // Копируем ВСЕ поля из ответа сервера (кроме служебных)
+        const { status, message, created, ...serverData } = serverResponse;
+        
+        const mergedData = {
+            ...frontendData,
+            ...serverData,
+            id: serverResponse.id
+        };
+        
+        return new EventDTO(mergedData);
+    }
+
 }
+
+
+// Проверь работу:
+// Создай событие - проверь что canEdit вычисляется правильно
+
+// Кликни на overlay - проверь что canEdit извлекается из data-атрибутов
+
+// Проверь консоль - нет ли ошибок
+
+// Теперь должно работать! 🚀
+// _calculateCanEdit(data) {
+//     // ПРОСТАЯ ЛОГИКА: если canEdit явно передан - используем его
+//     if (data.canEdit !== undefined) {
+//         this.canEdit = Boolean(data.canEdit);
+//         return;
+//     }
+    
+//     // Иначе вычисляем
+//     this.canEdit = this.created_by && 
+//                   this.created_by.toString() === this.getCurrentUserId();
+// }

@@ -1,0 +1,43 @@
+/* Стили для окна переноса */
+#move-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    z-index: 1001;
+    min-width: 300px;
+}
+
+#move-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+
+#move-modal .form-group {
+    margin: 10px 0;
+}
+
+#move-modal label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#move-date, #move-time, #move-start-minutes {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
