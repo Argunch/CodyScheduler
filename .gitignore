@@ -45,3 +45,5 @@ db.sqlite3
 *.log
 
 /staticfiles/
+
+generate_context.py
