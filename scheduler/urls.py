@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views
+from . import students_views
+
 
 urlpatterns = [
     path('save-event/', views.save_event, name='save_event'),
@@ -10,4 +12,9 @@ urlpatterns = [
     path('switch_user/', views.switch_user, name='switch_user'),
     path('get_users_list/', views.get_users_list, name='get_users_list'),
     path('signup/', views.signup, name='signup'),  # ← Добавляем регистрацию
+
+    path('students/', students_views.students_page, name='students_page'),
+    path('save-student/', students_views.save_student, name='save_student'),
+    path('load-students/', students_views.load_students, name='load_students'),
+    path('delete-student/', students_views.delete_student, name='delete_student'),
 ]

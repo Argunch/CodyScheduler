@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import User
-import uuid
 
 class ScheduleEvent(models.Model):
     user=models.ForeignKey(User,on_delete=models.CASCADE)
@@ -20,3 +19,18 @@ class ScheduleEvent(models.Model):
     def __str__(self):
         return f"{self.user} {self.date} {self.time} ({self.text[:20]})"
 
+
+class Student(models.Model):
+    first_name = models.CharField(max_length=100, verbose_name="Имя")
+    last_name = models.CharField(max_length=100, verbose_name="Фамилия")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Создатель")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Ученик"
+        verbose_name_plural = "Ученики"
+        ordering = ['last_name', 'first_name']
+
+    def __str__(self):
+        return f"{self.last_name} {self.first_name}"

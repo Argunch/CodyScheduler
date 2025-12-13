@@ -43,6 +43,18 @@ export class EventDTO {
 
     static prepareForApi(eventData) {
         const processed = { ...eventData };
+
+        // ✅ ОЧИСТКА UUID ПЕРЕД ОБРАБОТКОЙ (МИНИМАЛЬНОЕ ИЗМЕНЕНИЕ)
+        if (processed.id && typeof processed.id === 'string') {
+            processed.id = processed.id.replace(/["'“”]/g, '').trim();
+        }
+        if (processed.series_id && typeof processed.series_id === 'string') {
+            processed.series_id = processed.series_id.replace(/["'“”]/g, '').trim();
+            // Если после очистки строка пустая, устанавливаем null
+            if (processed.series_id === '') {
+                processed.series_id = null;
+            }
+        }
         
         // ✅ ДЛЯ РЕГУЛЯРНЫХ СОБЫТИЙ: series_id должен быть null
         // Сервер сам сгенерирует валидный UUID
