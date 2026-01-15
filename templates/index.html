@@ -13,7 +13,7 @@
 <body>
     <div style="position: absolute; top: 10px; right: 10px;">
         {% if user.is_authenticated %}
-            <span data-user-id="{{ user.id }}">Привет, {{ user.username }}!</span>
+            <span data-user-id="{{ user.id }}">Привет, {% if user.first_name %}{{ user.first_name }}{% else %}{{ user.username }}{% endif %}!</span>
             <meta name="is-superuser" content="{{ user.is_superuser|yesno:'true,false' }}">
             <form action="{% url 'logout' %}" method="post" style="display: inline;">
                 {% csrf_token %}
