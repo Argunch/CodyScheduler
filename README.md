@@ -23,7 +23,7 @@
 
 - Python 3.9 or higher
 - Git
-- SQLite (default, or PostgreSQL if preferred)
+- PostgreSQL
 
 ### Installation
 
