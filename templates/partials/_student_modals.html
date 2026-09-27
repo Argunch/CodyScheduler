@@ -1,0 +1,127 @@
+<!-- Модальное окно добавления ученика -->
+<div id="add-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Добавить ученика</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="add-student-form">
+                <div class="form-group">
+                    <label for="first-name">Имя:</label>
+                    <input type="text" id="first-name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="last-name">Фамилия:</label>
+                    <input type="text" id="last-name" class="form-input" required>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="add-modal-cancel" class="btn btn-secondary">Отмена</button>
+            <button type="button" id="add-modal-ok" class="btn btn-primary">Добавить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования ученика -->
+<div id="edit-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Редактировать ученика</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="edit-student-form">
+                <input type="hidden" id="edit-student-id">
+                <div class="form-group">
+                    <label for="edit-first-name">Имя:</label>
+                    <input type="text" id="edit-first-name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-last-name">Фамилия:</label>
+                    <input type="text" id="edit-last-name" class="form-input" required>
+                </div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" id="edit-modal-delete" class="btn btn-danger">Удалить</button>
+            <div class="modal-footer-right">
+                <button type="button" id="edit-modal-ok" class="btn btn-primary">Сохранить</button>
+                <button type="button" id="edit-modal-cancel" class="btn btn-secondary">Отмена</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Скрытая форма для CSRF-токена (нужна для POST-запросов) -->
+<form id="csrf-holder" style="display: none;">
+    {% csrf_token %}
+</form>
+<!-- Затемнение фона -->
+<div id="modal-overlay" class="modal-overlay"></div>
+
+
+<!-- Модалка стоимости курса -->
+<div id="course-price-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Добавить стоимость курса</h3>
+            <span class="close" id="course-price-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="course-price-course">Курс:</label>
+                <select id="course-price-course" class="form-input">
+                    <option value="" disabled selected>— Добавить курс —</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="course-price-value">Стоимость за занятие (₽):</label>
+                <input type="number" id="course-price-value" class="form-input" min="0" step="1" placeholder="Например, 1000">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="course-price-delete" class="btn btn-danger" style="display: none;">Удалить</button>   <!-- ДОБАВЛЕНО -->
+            <div class="modal-footer-right">                                                                               <!-- ДОБАВЛЕНО -->
+                <button type="button" id="course-price-cancel" class="btn btn-secondary">Отмена</button>
+                <button type="button" id="course-price-save" class="btn btn-primary">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="course-price-overlay" class="modal-overlay"></div>
+
+<!-- Модалка добавления оплаты -->
+<div id="payment-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Добавить оплату</h3>
+            <span class="close" id="payment-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="payment-course">Курс:</label>
+                <select id="payment-course" class="form-input">
+                    <option value="" disabled selected>— Выберите курс —</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="payment-amount">Сумма (₽):</label>
+                <input type="number" id="payment-amount" class="form-input" min="0" step="1" placeholder="Например, 5000">
+            </div>
+            <div class="form-group">
+                <label for="payment-date">Дата оплаты:</label>
+                <input type="date" id="payment-date" class="form-input">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="payment-delete" class="btn btn-danger" style="display: none;">Удалить</button>   <!-- ДОБАВЛЕНО -->
+            <div class="modal-footer-right">                                                                          <!-- ДОБАВЛЕНО -->
+                <button type="button" id="payment-cancel" class="btn btn-secondary">Отмена</button>
+                <button type="button" id="payment-save" class="btn btn-primary">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="payment-overlay" class="modal-overlay"></div>

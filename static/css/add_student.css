@@ -1,0 +1,168 @@
+/* =====================================================
+   Модальное окно выбора учеников
+   По аналогии с event-view-modal
+   ===================================================== */
+
+#event-students-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1100;                 /* выше event-modal (1000) */
+    width: 90%;
+    max-width: 450px;
+    overflow: hidden;
+}
+
+#event-students-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1099;                 /* выше modal-overlay (999) */
+}
+
+/* Заголовок */
+#event-students-modal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+#event-students-modal .modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+    font-weight: 600;
+}
+
+#event-students-modal .close {
+    cursor: pointer;
+    font-size: 24px;
+    font-weight: bold;
+    color: #999;
+    background: none;
+    border: none;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+#event-students-modal .close:hover {
+    background-color: #f5f5f5;
+    color: #666;
+}
+
+/* Тело */
+#event-students-modal .modal-body {
+    padding: 0;
+}
+
+/* Список учеников — скролл при переполнении */
+#event-students-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 5px;
+    margin-bottom: 15px;
+}
+
+/* Одна строка ученика: имя слева, чекбокс справа */
+#event-students-list .event-student-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+#event-students-list .event-student-row:last-child {
+    border-bottom: none;
+}
+
+#event-students-list .event-student-row:hover {
+    background-color: #f5faff;
+}
+
+#event-students-list .event-student-name {
+    font-size: 14px;
+    color: #333;
+}
+
+#event-students-list input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #279FF5;
+}
+
+/* Состояния: пусто / загрузка / ошибка */
+#event-students-list .event-students-empty,
+#event-students-list .event-students-loading {
+    text-align: center;
+    padding: 25px 15px;
+    font-size: 14px;
+    color: #999;
+    font-style: italic;
+}
+
+#event-students-list .event-students-error {
+    text-align: center;
+    padding: 25px 15px;
+    font-size: 14px;
+    color: #d32f2f;
+}
+
+/* Футер с кнопками */
+#event-students-modal .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+#event-students-modal .modal-footer .btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    transition: background-color 0.2s;
+}
+
+#event-students-modal .modal-footer .btn-primary {
+    background-color: #279FF5;
+    color: white;
+    border-color: #279FF5;
+}
+#event-students-modal .modal-footer .btn-primary:hover {
+    background-color: #138ECF;
+    border-color: #138ECF;
+}
+
+#event-students-modal .modal-footer .btn-secondary {
+    background-color: #f5f5f5;
+    color: #333;
+}
+#event-students-modal .modal-footer .btn-secondary:hover {
+    background-color: #e9e9e9;
+}
+

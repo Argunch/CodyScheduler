@@ -1,0 +1,47 @@
+<!-- Модалка создания курса -->
+<div id="course-create-modal" class="modal-common">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Новый курс</h3>
+            <span class="close" id="course-create-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="course-create-name">Название курса:</label>
+                <input type="text" id="course-create-name" class="form-input" maxlength="100" placeholder="Например, Roblox">
+            </div>
+            <div id="course-create-error" class="form-error" style="display: none;"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="course-create-cancel" class="btn btn-secondary">Отмена</button>
+            <button type="button" id="course-create-save" class="btn btn-primary">Создать</button>
+        </div>
+    </div>
+</div>
+<div id="course-create-overlay" class="modal-common-overlay"></div>
+
+<!-- Модалка удаления курса -->
+<div id="course-delete-modal" class="modal-common">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Удаление курса</h3>
+            <span class="close" id="course-delete-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="course-delete-select">Курс:</label>
+                <select id="course-delete-select" class="form-input">
+                    <option value="" disabled selected>— Выберите курс —</option>
+                </select>
+            </div>
+            <div id="course-delete-error" class="form-error" style="display: none;"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="course-delete-cancel" class="btn btn-secondary">Отмена</button>
+            <button type="button" id="course-delete-archive" class="btn btn-neutral">В архив</button>
+            <button type="button" id="course-delete-hard" class="btn btn-danger">Удалить</button> 
+        </div>
+    </div>
+</div>
+<div id="course-delete-overlay" class="modal-common-overlay"></div>
+

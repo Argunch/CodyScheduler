@@ -128,6 +128,8 @@ export class EventManager {
 
     onOverlayClicked(event) {
         const { eventData } = event.detail;
+
+        // console.log('🔍 eventData при клике:', eventData);   // ← добавь это
         
         // Вся бизнес-логика здесь
         if (!eventData.canEdit) {

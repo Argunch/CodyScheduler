@@ -66,10 +66,14 @@ export class EventViewModal {
             `${this.dayNames[day]}, ${formattedDate} ${time}`;
 
         // Заполняем поля
-        this.elements.eventText.textContent = dto.text || '(без текста)';
+        // this.elements.eventText.textContent = dto.text || '(без текста)';
+        this.renderText(eventData.text || '');
         this.elements.eventDuration.textContent =
             `${timeUtils.decimalToTime(dto.duration)} часов`;
 
+        // Заполняем учеников
+        this.renderStudents(eventData.students);
+        this.renderCourse(eventData.course_name);   // ДОБАВЛЕНО
         this.showModal();
     }
 
@@ -94,5 +98,103 @@ export class EventViewModal {
      */
     isVisible() {
         return this.elements.modal.style.display === 'block';
+    }
+
+    renderStudents(students) {
+        const group = document.getElementById('view-students-group');
+        const container = document.getElementById('view-event-students');
+
+        if (!group || !container) return;
+
+        // Если учеников нет — прячем секцию целиком
+        if (!Array.isArray(students) || students.length === 0) {
+            group.style.display = 'none';
+            container.innerHTML = '';
+            this.updateModalText(false);            // ← NEW: нет учеников
+            return;
+        }
+
+        group.style.display = 'block';
+
+
+        // ИЗМЕНЕНО: строки — ссылки на профиль ученика с (N) остатка
+        container.innerHTML = students.map(s => {
+            const suffix = (s.remaining_lessons !== null && s.remaining_lessons !== undefined)
+                ? ` (${s.remaining_lessons})`
+                : '';
+            return `
+                <div class="view-student-row">
+                    ${this.escapeHtml(s.full_name)}${suffix}
+                </div>
+            `;
+        }).join('');
+
+        this.updateModalText(true);                 // ← NEW: есть ученики
+    }
+
+    /**
+     * Меняет заголовок и метку текста в зависимости от наличия учеников
+     */
+    updateModalText(hasStudents) {
+        const title = document.getElementById('view-modal-title');
+        const label = document.getElementById('view-text-label');
+
+        if (title) {
+            title.textContent = hasStudents ? 'Просмотр занятия' : 'Просмотр события';
+        }
+        if (label) {
+            label.textContent = hasStudents ? 'Заметки к занятию:' : 'Текст события:';
+        }
+    }
+
+    /**
+     * Показывает/скрывает блок с курсом.
+     */
+    renderCourse(courseName) {
+        const group = document.getElementById('view-course-group');
+        const el = document.getElementById('view-event-course');
+        if (!group || !el) return;
+
+        if (!courseName) {
+            group.style.display = 'none';
+            el.textContent = '';
+            return;
+        }
+        group.style.display = 'block';
+        el.textContent = courseName;
+    }
+
+    /**
+     * Вставляет текст с автоматической подсветкой ссылок.
+     * Порядок: сначала escape (XSS), потом линкификация.
+     */
+    renderText(text) {
+        const container = document.getElementById('view-event-text');
+        if (!container) return;
+
+        if (!text) {
+            container.innerHTML = '';
+            return;
+        }
+
+        // 1. Экранируем HTML — защита от XSS
+        const escaped = this.escapeHtml(text);
+
+        // 2. Находим http(s):// и www. — оборачиваем в <a>
+        const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+        const html = escaped.replace(urlRegex, (url) => {
+            const href = url.startsWith('http') ? url : `https://${url}`;
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+        });
+
+        // 3. Вставляем через innerHTML.
+        // CSS white-space: pre-line сохранит переносы строк.
+        container.innerHTML = html;
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }

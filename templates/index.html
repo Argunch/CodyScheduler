@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Расписание</title>
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'css/course_modals.css' %}">
 </head>
 
 <body>
@@ -73,8 +74,16 @@
     <!-- Модальное окно -->
     <div id="event-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border: 1px solid #ccc; z-index: 1000;">
         <input type="hidden" id="event-id" name="event-id">
-        <h3>Добавить событие</h3>
+        <h3 id="event-modal-title" >Добавить событие</h3>
         <p id="modal-time-info"></p>
+
+        <div class="form-group" id="event-course-group" style="display: none;">
+            <label for="event-course">Курс: <span style="color: #d32f2f;">*</span></label>
+            <select id="event-course" class="form-input">
+                <option value="" disabled selected>— Выберите курс —</option>
+            </select>
+        </div>
+
         <textarea id="event-text" rows="4" cols="30" placeholder="Введите текст события"></textarea>
 
         <!-- Поле минут начала -->
@@ -101,6 +110,15 @@
         <!-- Дни недели -->
         <button id="select-days-btn" class="btn-days" type="button">Дни недели</button>
 
+        <div class="students-section">
+            <button id="add-students-btn" class="btn-add-students" type="button">
+                + Добавить ученика
+            </button>
+            <div id="selected-students-list" class="selected-students-list">
+                <!-- Выбранные ученики рендерятся через JS -->
+            </div>
+        </div>
+
         <!-- Перенос -->
         <button id="move-note" style="display: none;">Перенести</button>
 
@@ -108,6 +126,23 @@
             <label>
                 <input type="checkbox" id="is-recurring"> регулярно
             </label>
+        </div>
+
+
+        <div class="form-group" id="event-completion-group" style="display: none;">
+            <label for="event-completion-status">Статус проведения:</label>
+            <select id="event-completion-status" class="form-input">
+                <option value="">— Не отмечено —</option>
+                <option value="passed">Прошло успешно</option>
+                <option value="missed_student">Пропущено учеником</option>
+                <option value="missed_teacher">Пропущено преподавателем</option>
+                <option value="not_conducted">Не проведено</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="event-attendance-group" style="display: none;">
+            <label>Посещаемость:</label>
+            <button type="button" id="open-attendance-btn" class="btn btn-secondary">Открыть посещаемость</button>
         </div>
 
         <div class="modal-buttons">
@@ -161,18 +196,43 @@
 
     <div id="move-modal-overlay" class="modal-overlay" style="display: none;"></div>
 
+    <!-- Модальное окно выбора учеников (открывается поверх event-modal) -->
+    <div id="event-students-modal" class="modal event-students-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Выбрать учеников</h3>
+                <span class="close" id="event-students-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="event-students-list" class="event-students-list">
+                    <!-- Список рендерится через JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="event-students-cancel" class="btn btn-secondary">Отмена</button>
+                <button type="button" id="event-students-ok" class="btn btn-primary">Добавить</button>
+            </div>
+        </div>
+    </div>
+    <div id="event-students-overlay" class="modal-overlay event-students-overlay" style="display: none;"></div>
+
     <!-- Модальное окно просмотра события (только чтение) -->
     <div id="event-view-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Просмотр события</h3>
+                <h3 id="view-modal-title">Просмотр события</h3>
                 <span class="close">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="time-info" id="view-time-info"></div>
 
+                <div class="form-group" id="view-course-group" style="display: none;">
+                    <label>Курс:</label>
+                    <div class="view-course" id="view-event-course"></div>
+                </div>
+
                 <div class="form-group">
-                    <label>Текст события:</label>
+                    <label id="view-text-label">Текст события:</label>
                     <div class="view-text" id="view-event-text"></div>
                 </div>
 
@@ -180,6 +240,22 @@
                     <label>Продолжительность:</label>
                     <div class="view-duration" id="view-event-duration"></div>
                 </div>
+
+                <div class="form-group" id="view-students-group">
+                    <label>Ученики:</label>
+                    <div class="view-students" id="view-event-students"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка отметки прошедших занятий (нельзя закрыть) -->
+    <div id="completion-modal">
+        <div class="completion-modal-window">
+            <h2>Отметьте прошедшие занятия</h2>
+            <p class="completion-modal-subtitle">Пока все занятия не отмечены, окно нельзя закрыть</p>
+            <div id="completion-list">
+                <!-- Карточки рендерятся через JS -->
             </div>
         </div>
     </div>
@@ -190,6 +266,26 @@
 
     <!-- Затемнение фона -->
     <div id="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;"></div>
+
+
+    <!-- Модалка посещаемости (для групп) -->
+    <div id="attendance-modal" class="modal-common">
+        <div class="modal-header">
+            <h3>Отметить посещаемость</h3>
+            <span class="close" id="attendance-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="attendance-list" class="attendance-list"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="attendance-cancel" class="btn btn-secondary">Отмена</button>
+            <button type="button" id="attendance-save" class="btn btn-primary">Сохранить</button>
+        </div>
+    </div>
+    <div id="attendance-overlay" class="modal-common-overlay"></div>
+
+
+    {% include 'partials/_course_modals.html' %}
 
     <script type="module" src="{% static 'scripts/main.js' %}"></script>
 </body>

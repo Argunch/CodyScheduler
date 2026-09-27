@@ -96,11 +96,25 @@
     border-radius: 4px;
     background: #f9f9f9;
     min-height: 60px;
+    max-height: 140px;
     line-height: 1.4;
     color: #333;
     font-family: inherit;
     resize: none;
     overflow-y: auto;
+
+    white-space: pre-line;      /* ← NEW: сохраняет \n */
+    word-break: break-word;     /* ← NEW: длинные слова переносятся */
+}
+
+.view-text a {
+    color: #279FF5;
+    text-decoration: underline;
+    word-break: break-all;        /* длинные URL переносятся */
+}
+
+.view-text a:hover {
+    color: #138ECF;
 }
 
 .view-duration {
@@ -118,6 +132,56 @@
     color: #999;
     font-style: italic;
 }
+
+.view-students {
+    display: flex;
+    flex-direction: column;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+/* Строки учеников как кнопки-ссылки */
+.view-students .view-student-row {
+    display: block;
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 5px;
+    font-size: 14px;
+    color: #333;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.view-students .view-student-row:last-child {
+    margin-bottom: 0;
+}
+
+.view-students .view-student-row:hover {
+    background: #eaf4ff;
+    border-color: #279FF5;
+    color: #279FF5;
+    text-decoration: none;
+}
+
+/* Блок курса — как view-text */
+.view-course {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #f9f9f9;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+
 
 /* Адаптивность */
 @media (max-width: 600px) {

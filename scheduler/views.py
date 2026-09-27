@@ -16,261 +16,6 @@ from django.contrib.auth.models import User
 
 from .event_manager import EventManager
 
-# def get_target_user(request):
-#     """Определяет целевого пользователя для операций"""
-#     target_user_id = request.session.get('target_user_id')
-#     if target_user_id and request.user.is_superuser:
-#         try:
-#             return User.objects.get(id=target_user_id)
-#         except User.DoesNotExist:
-#             pass
-#     return request.user
-
-# @csrf_exempt
-# @require_POST
-# @login_required
-# def save_event(request):
-#     try:
-#         target_user = get_target_user(request)
-
-#         data = json.loads(request.body)
-#         event_id = data.get('id')  # ← ловим id, если редактирование
-
-#         date_str = data['date']
-#         time_str = data['time']
-#         text = data.get('text', '')
-#         color = data.get('color', '')
-#         is_recurring = data.get('is_recurring', False)
-#         duration = data.get('duration', 1.0)
-
-#         from datetime import datetime
-#         date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-
-#         # Парсим время - поддерживаем разные форматы
-#         time_obj = None
-#         time_formats = ['%H:%M:%S', '%H:%M', '%H']
-#         for fmt in time_formats:
-#             try:
-#                 time_obj = datetime.strptime(time_str, fmt).time()
-#                 break
-#             except ValueError:
-#                 continue
-
-#         if time_obj is None:
-#             return JsonResponse({'status': 'error', 'message': 'Неверный формат времени'})
-
-#         # ПРОВЕРКА ДУБЛИКАТА
-#         existing_event = ScheduleEvent.objects.filter(
-#             user=target_user,
-#             date=date_obj,
-#             time=time_obj
-#         ).first()
-
-#         if existing_event and not event_id:  # Только для создания нового
-#             return JsonResponse({
-#                 'status': 'error',
-#                 'message': 'Событие в это время уже существует'
-#             })
-
-#         # --- Если есть id → обновляем существующее событие
-#         if event_id:
-#             try:
-#                 event = ScheduleEvent.objects.get(id=event_id, user=target_user)
-
-#                 # ОБНОВЛЕННАЯ ПРОВЕРКА ПРАВ ДОСТУПА - суперпользователь может всё
-#                 if not request.user.is_superuser and event.created_by != request.user:
-#                     return JsonResponse({
-#                         'status': 'error',
-#                         'message': 'Недостаточно прав для редактирования этого события'
-#                     }, status=403)
-
-#                 # Если событие становится регулярным (было нерегулярным, стало регулярным)
-#                 if not event.is_recurring and is_recurring:
-#                     # Создаем новую серию
-#                     import uuid
-#                     series = uuid.uuid4()
-
-#                     # Обновляем текущее событие с новыми данными
-#                     event.date = date_obj  # ← обновляем дату
-#                     event.time = time_obj  # ← обновляем время
-#                     event.text = text
-#                     event.color = color
-#                     event.is_recurring = is_recurring
-#                     event.duration = duration
-#                     event.series_id = series
-#                     event.save()
-
-#                     from datetime import timedelta
-
-#                     # Создаем будущие события
-#                     create_recurring_events(
-#                         target_user,
-#                         date_obj + timedelta(weeks=1),  # ← используем новую дату
-#                         time_obj,  # ← используем новое время
-#                         text,
-#                         color,
-#                         duration,
-#                         series,
-#                     )
-
-#                 # Если это уже регулярное событие и изменились параметры
-#                 elif event.is_recurring and is_recurring:
-#                     # Обновляем всю серию
-#                     series_id = event.series_id
-
-#                     # Обновляем все события этой серии
-#                     events_to_update = ScheduleEvent.objects.filter(
-#                         user=target_user,
-#                         series_id=series_id
-#                     )
-
-#                     for ev in events_to_update:
-#                         ev.text = text
-#                         ev.color = color
-#                         ev.duration = duration
-#                         # Если изменилось время, обновляем время для всех событий
-#                         if str(ev.time) != time_str:
-#                             ev.time = time_obj
-#                         ev.save()
-
-#                 # Если регулярное событие становится нерегулярным
-#                 elif event.is_recurring and not is_recurring:
-#                     import uuid
-#                     from datetime import timedelta
-
-#                     # Сохраняем исходные данные старой серии
-#                     original_time = event.time
-#                     original_text = event.text
-#                     original_color = event.color
-#                     original_duration = event.duration
-
-#                     # 1. Удаляем все будущие события старой серии (но НЕ трогаем текущее)
-#                     ScheduleEvent.objects.filter(
-#                         user=target_user,
-#                         series_id=event.series_id,
-#                         date__gt=date_obj
-#                     ).delete()
-
-
-
-#                     # 2. Создаем новую серию регулярных событий с теми же параметрами
-#                     new_series_id = uuid.uuid4()
-#                     new_start_date = date_obj
-
-#                     # Проверяем, что на new_start_date в это время нет других событий
-#                     while ScheduleEvent.objects.filter(
-#                             user=target_user,
-#                             date=new_start_date,
-#                             time=original_time
-#                     ).exists():
-#                         new_start_date += timedelta(weeks=1)
-
-#                     # Создаем новую серию, если дата не ушла слишком далеко
-#                     if new_start_date <= date_obj + timedelta(weeks=52):
-#                         create_recurring_events(
-#                             target_user,
-#                             new_start_date,
-#                             original_time,
-#                             original_text,
-#                             original_color,
-#                             original_duration,
-#                             new_series_id,
-#                             weeks_ahead=52
-#                         )
-
-#                     # 3. Обновляем текущее событие → превращаем в одиночное
-#                     event.text = text
-#                     event.color = color
-#                     event.is_recurring = False
-#                     event.duration = duration
-#                     event.save()
-
-#                 else:
-#                     # Обновляем только одно нерегулярное событие
-#                     event.date = date_obj
-#                     event.time = time_obj
-#                     event.text = text
-#                     event.color = color
-#                     event.is_recurring = is_recurring
-#                     event.duration = duration
-#                     event.save()
-
-#                 created = False
-#                 return JsonResponse({'status': 'success', 'created': created, 'id': event.id})
-#             except ScheduleEvent.DoesNotExist:
-#                 return JsonResponse({'status': 'error', 'message': 'Событие не найдено'})
-            
-#         else:
-#             created = True
-#             if is_recurring==False:
-#                 # --- Если id нет → создаём новое событие
-#                 event = ScheduleEvent.objects.create(
-#                     user=target_user,
-#                     date=date_obj,
-#                     time=time_obj,
-#                     text=text,
-#                     color=color,
-#                     is_recurring=is_recurring,
-#                     duration=duration,
-#                     created_by=request.user
-#                 )
-#                 return JsonResponse({'status': 'success', 'created': created, 'id': event.id})
-#             # Если это регулярное занятие — создаём будущие
-#             else:
-#                 import uuid
-#                 series = uuid.uuid4()
-#                 # Создаем ПЕРВОЕ событие серии
-#                 first_event = ScheduleEvent.objects.create(
-#                     user=target_user,
-#                     date=date_obj,
-#                     time=time_obj,
-#                     text=text,
-#                     color=color,
-#                     is_recurring=True,  # ← важно!
-#                     duration=duration,
-#                     series_id=series,   # ← устанавливаем series_id
-#                     created_by=request.user
-#                 )
-                
-#                 # Создаем остальные события серии (начиная со следующей недели)
-#                 create_recurring_events(
-#                     target_user,
-#                     date_obj,  # ← начинаем со следующей недели
-#                     time_obj,
-#                     text,
-#                     color,
-#                     duration,
-#                     series,
-#                 )
-#                 return JsonResponse({'status': 'success', 'created': created, 'id': first_event.id, 'series_id': str(series)})
-#     except Exception as e:
-#         return JsonResponse({'status': 'error', 'message': str(e)})
-    
-# def create_recurring_events(user, start_date, time, text, color, duration=1.0, series=None, weeks_ahead=52):
-#     """Создает регулярные события на год вперед"""
-#     from datetime import timedelta
-#     try:
-#         for week in range(0, weeks_ahead + 1):
-#             event_date = start_date + timedelta(weeks=week)
-
-#             if ScheduleEvent.objects.filter(user=user, date=event_date, time=time).exists():
-#                 continue
-
-#             ScheduleEvent.objects.create(
-#                 user=user,
-#                 date=event_date,
-#                 time=time,
-#                 text=text,
-#                 color=color,
-#                 is_recurring=True,
-#                 duration=duration,
-#                 series_id=series
-#             )
-#     except Exception as e:
-#         print(f"[ERROR] in create_recurring_events: {str(e)}")
-#         raise e
-
-
 @csrf_exempt
 @require_POST
 @login_required
@@ -334,12 +79,14 @@ def load_events(request):
         events=ScheduleEvent.objects.filter(
             user=target_user,
             date__range=[date_from_obj,date_to_obj]
-        ).select_related('created_by', 'user')
+        ).select_related('created_by', 'user', 'course').prefetch_related('students', 'attendances')
 
         events_data=[]
         for event in events:
             time_str = event.time.strftime('%H:%M')
 
+            # ДОБАВЛЕНО: карта посещаемости для текущего события
+            attendance_map = {a.student_id: a.was_present for a in event.attendances.all()}
             events_data.append({
                 'id': event.id,
                 'series_id': str(event.series_id),
@@ -349,8 +96,23 @@ def load_events(request):
                 'color': event.color,
                 'is_recurring': event.is_recurring,
                 'duration': float(event.duration),
-                'created_by': event.created_by.id,  # ← ДОБАВЬТЕ ЭТО
-                'user_id': event.user.id  # ← ДОБАВЬТЕ ЭТО
+                'created_by': event.created_by.id,
+                'user_id': event.user.id,
+                'status': event.status,                                # NEW
+                'student_ids': list(event.students.values_list('id', flat=True)),  # NEW
+                'students': [
+                    {
+                        'id': s.id,
+                        'full_name': str(s),
+                        'remaining_lessons': s.get_remaining_lessons(event.course),
+                        'was_present': attendance_map.get(s.id),   # ДОБАВЛЕНО
+                    }
+                    for s in event.students.all()
+                ],
+                'course_id': event.course_id,
+                'course_name': event.course.name if event.course else '',
+                'completion_status': event.completion_status,    # ДОБАВЛЕНО
+                'completed_at': event.completed_at.isoformat() if event.completed_at else None,   # ДОБАВЛЕНО
             })
         return  JsonResponse({'status': 'success', 'events': events_data})
 
@@ -371,13 +133,14 @@ def load_series_events(request):
         # Ищем все события с таким series_id для целевого пользователя
         events = ScheduleEvent.objects.filter(
             user=target_user,
-            series_id=series_id
-        ).select_related('created_by', 'user')
+            series_id=series_id,
+        ).select_related('created_by', 'user', 'course').prefetch_related('students', 'attendances')
 
         events_data = []
         for event in events:
             time_str = event.time.strftime('%H:%M')
-
+            # ДОБАВЛЕНО: карта посещаемости для текущего события
+            attendance_map = {a.student_id: a.was_present for a in event.attendances.all()}
             events_data.append({
                 'id': event.id,
                 'series_id': str(event.series_id),
@@ -388,7 +151,22 @@ def load_series_events(request):
                 'is_recurring': event.is_recurring,
                 'duration': float(event.duration),
                 'created_by': event.created_by.id,
-                'user_id': event.user.id
+                'user_id': event.user.id,
+                'status': event.status,                                # NEW
+                'student_ids': list(event.students.values_list('id', flat=True)),  # NEW
+                'students': [
+                    {
+                        'id': s.id,
+                        'full_name': str(s),
+                        'remaining_lessons': s.get_remaining_lessons(event.course),
+                        'was_present': attendance_map.get(s.id),   # ДОБАВЛЕНО
+                    }
+                    for s in event.students.all()
+                ],
+                'course_id': event.course_id,
+                'course_name': event.course.name if event.course else '',
+                'completion_status': event.completion_status,    # ДОБАВЛЕНО
+                'completed_at': event.completed_at.isoformat() if event.completed_at else None,   # ДОБАВЛЕНО
             })
         
         return JsonResponse({'status': 'success', 'events': events_data})
@@ -588,3 +366,56 @@ def signup(request):
     else:
         form = UserCreationForm()
     return render(request, 'registration/signup.html', {'form': form})
+
+@csrf_exempt
+@login_required
+def load_unmarked_events(request):
+    """API: список непроверенных индивидуальных занятий за 7 дней"""
+    try:
+        manager = EventManager(request)
+        events = manager.load_unmarked_events()
+        return JsonResponse({'status': 'success', 'events': events})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+
+
+@csrf_exempt
+@require_POST
+@login_required
+def mark_event(request):
+    """API: отметить проведение занятия (индивидуального или группового)"""
+    try:
+        manager = EventManager(request)
+        data = json.loads(request.body)
+
+        event_id = data.get('id')
+        if not event_id:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Нужен id события'},
+                status=400
+            )
+
+        completion_status = data.get('completion_status')
+        attendances = data.get('attendances')
+
+        result = manager.mark_event(event_id, completion_status, attendances)
+        return JsonResponse({'status': 'success', **result})
+
+    except ScheduleEvent.DoesNotExist:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Событие не найдено'},
+            status=404
+        )
+    except ValueError as e:
+        return JsonResponse(
+            {'status': 'error', 'message': str(e)},
+            status=400
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error in mark_event: {e}", exc_info=True)
+        return JsonResponse(
+            {'status': 'error', 'message': 'Внутренняя ошибка сервера'},
+            status=500
+        )
+

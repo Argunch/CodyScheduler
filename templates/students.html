@@ -30,58 +30,9 @@
         </main>
     </div>
 
-    <!-- Модальное окно добавления ученика -->
-    <div id="add-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Добавить ученика</h3>
-                <span class="close">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="add-student-form">
-                    <div class="form-group">
-                        <label for="first-name">Имя:</label>
-                        <input type="text" id="first-name" class="form-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="last-name">Фамилия:</label>
-                        <input type="text" id="last-name" class="form-input" required>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" id="add-modal-cancel" class="btn btn-secondary">Отмена</button>
-                <button type="button" id="add-modal-ok" class="btn btn-primary">Добавить</button>
-            </div>
-        </div>
-    </div>
+    {% include 'partials/_student_modals.html' %}
+    {% include 'partials/_course_modals.html' %}
 
-    <!-- Модальное окно редактирования ученика -->
-    <div id="edit-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Редактировать ученика</h3>
-                <span class="close">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="edit-student-form">
-                    <input type="hidden" id="edit-student-id">
-                    <div class="form-group">
-                        <label for="edit-first-name">Имя:</label>
-                        <input type="text" id="edit-first-name" class="form-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-last-name">Фамилия:</label>
-                        <input type="text" id="edit-last-name" class="form-input" required>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" id="edit-modal-cancel" class="btn btn-secondary">Отмена</button>
-                <button type="button" id="edit-modal-ok" class="btn btn-primary">Сохранить</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Затемнение фона -->
-    <div id="modal-overlay" class="modal-overlay"></div>
+    <script type="module" src="{% static 'scripts/main.js' %}"></script>
+</body>
+</html>

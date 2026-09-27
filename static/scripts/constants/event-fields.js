@@ -16,7 +16,16 @@ export const EVENT_STRUCTURE = {
     
     // Дополнительные поля
     overlay: null,
-    startMinutes: 0
+    startMinutes: 0,
+
+    student_ids: [],
+    students: [],
+
+    course_id: null,   // ДОБАВЛЕНО
+    course_name: '',
+
+    completion_status: '',   // ДОБАВЛЕНО
+    completed_at: null,      // ДОБАВЛЕНО
 };
 
 // МАППИНГ ДЛЯ DATA-АТРИБУТОВ
@@ -25,6 +34,7 @@ export const DATA_ATTRIBUTE_MAPPING = {
     'data-series-id': 'series_id',
     'data-date': 'date', 
     'data-time': 'time',
+    'data-text': 'text',
     'data-color': 'color',
     'data-recurring': 'is_recurring',
     'data-duration': 'duration',
@@ -32,7 +42,10 @@ export const DATA_ATTRIBUTE_MAPPING = {
     'data-user-id': 'user_id',
     'data-target-user-id': 'target_user_id',
     'data-can-edit': 'canEdit',
-    'data-start-minutes': 'startMinutes'
+    'data-start-minutes': 'startMinutes',
+    'data-course-id': 'course_id',   // ДОБАВЛЕНО
+    'data-course-name': 'course_name',
+    'data-completion-status': 'completion_status',   // ДОБАВЛЕНО
 };
 
 

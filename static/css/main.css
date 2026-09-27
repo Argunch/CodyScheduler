@@ -1,13 +1,23 @@
+@import url('forms_common.css');
+@import url('modals_common.css');
+
 @import url('user_list.css');
 @import url('schedule.css');
 
 @import url('add_note.css');
+
 @import url('move_note.css');
 @import url('event_view_modal.css');
 @import url('week_day_modal.css');
 @import url('timeline.css');
 @import url('eye_toggle.css');
 @import url('week_controller.css');
+
+@import url('add_student.css');
+
+@import url('completion_modal.css');
+
+
 
 body {
     font-family: Arial, sans-serif;

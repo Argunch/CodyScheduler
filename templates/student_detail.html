@@ -1,0 +1,63 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ student.last_name }} {{ student.first_name }}</title>
+    <link rel="stylesheet" href="{% static 'css/students.css' %}">
+    <link rel="stylesheet" href="{% static 'css/student_detail.css' %}">
+</head>
+<body>
+    <div class="student-detail-container" id="student-detail-page" data-student-id="{{ student.id }}">
+
+        <header class="student-detail-header">
+            <a href="{% url 'students_page' %}" class="back-link">← К списку учеников</a>
+        </header>
+
+        <h1 class="student-detail-name">
+            {{ student.last_name }} {{ student.first_name }}
+        </h1>
+        <p class="student-detail-created">
+            Создан: {{ student.created_at|date:"d.m.Y" }}
+        </p>
+
+        <div class="student-detail-actions">
+            <button id="student-detail-edit" class="btn btn-edit" type="button">Редактировать</button>
+        </div>
+
+        <section class="student-section">
+            <h2>Баланс</h2>
+            <div id="balance-total" class="balance-value">0 ₽</div>
+            <div id="balance-by-course" class="balance-by-course">
+                <!-- Заполняется через JS -->
+            </div>
+        </section>
+
+        <section class="student-section">
+            <div class="student-section-header">
+                <h2>Стоимость курсов</h2>
+                <button id="add-course-price-btn" class="btn-add" type="button">+ Добавить</button>
+            </div>
+            <div id="course-prices-list" class="course-prices-list">
+                <!-- Заполняется через JS -->
+            </div>
+        </section>
+
+        <section class="student-section">
+            <div class="student-section-header">
+                <h2>Оплаты</h2>
+                <button id="add-payment-btn" class="btn-add" type="button">+ Добавить</button>
+            </div>
+            <div id="payments-list" class="payments-list">
+                <div class="payments-empty">Оплат пока нет</div>
+            </div>
+        </section>
+
+    </div>
+    {% include 'partials/_student_modals.html' %}
+    {% include 'partials/_course_modals.html' %}
+
+    <script type="module" src="{% static 'scripts/main.js' %}"></script>
+</body>
+</html>

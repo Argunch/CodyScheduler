@@ -3,6 +3,9 @@ import { timeUtils, dateUtils, storageUtils } from '../utils/utils.js';
 import { EventDTO } from '../models/event-dto.js';
 import { EVENT_FIELDS } from '../constants/event-fields.js';
 
+import { getCourseCreateModal } from './course-create-modal.js';    // ДОБАВЛЕНО
+import { getCourseDeleteModal } from './course-delete-modal.js';    // ДОБАВЛЕНО
+
 export class EventModal {
     constructor(apiService, overlayManager,eventManager) {
         this.apiService = apiService;
@@ -13,10 +16,23 @@ export class EventModal {
         this.selectedColor = null;
         this.isEditing = false;
 
+        // Состояние выбранных учеников
+        this.selectedStudentIds = [];   // массив ID
+        this.allStudents = [];          // кэш последнего загруженного списка
+
+        // выбор курса
+        this.selectedCourseId = null;    
+        this._loadedCourses = [];        
+        this.courseCreateModal = getCourseCreateModal(); 
+        this.courseDeleteModal = getCourseDeleteModal(); 
+
+        this.currentEventData = null;    // ДОБАВЛЕНО: полные данные открытого события
+
         this.elements = {
             modal: document.getElementById('event-modal'),
             overlay: document.getElementById('modal-overlay'),
             timeInfo: document.getElementById('modal-time-info'),
+            modalTitle: document.getElementById('event-modal-title'),
             textInput: document.getElementById('event-text'),
             startMinutesInput: document.getElementById('event-start-minutes'),
             durationInput: document.getElementById('event-duration'),
@@ -42,7 +58,36 @@ export class EventModal {
             moveTimeSelect: document.getElementById('move-time'),
             moveStartMinutesInput: document.getElementById('move-start-minutes'),
             moveModalOk: document.getElementById('move-modal-ok'),
-            moveModalCancel: document.getElementById('move-modal-cancel')
+            moveModalCancel: document.getElementById('move-modal-cancel'),
+
+            // Элементы модального окна выбора учеников
+            addStudentsBtn: document.getElementById('add-students-btn'),
+            studentsModal: document.getElementById('event-students-modal'),
+            studentsOverlay: document.getElementById('event-students-overlay'),
+            studentsList: document.getElementById('event-students-list'),
+            studentsOk: document.getElementById('event-students-ok'),
+            studentsCancel: document.getElementById('event-students-cancel'),
+            studentsClose: document.getElementById('event-students-close'),
+
+            selectedStudentsList: document.getElementById('selected-students-list'),
+
+            // выбор курса
+            courseGroup: document.getElementById('event-course-group'),
+            courseSelect: document.getElementById('event-course'),
+
+            // изменение статуса занятия
+            completionGroup: document.getElementById('event-completion-group'),    
+            completionSelect: document.getElementById('event-completion-status'),  
+
+            // изменение посещаемости учеников
+            attendanceGroup: document.getElementById('event-attendance-group'),      
+            openAttendanceBtn: document.getElementById('open-attendance-btn'),       
+            attendanceModal: document.getElementById('attendance-modal'),             
+            attendanceOverlay: document.getElementById('attendance-overlay'),         
+            attendanceList: document.getElementById('attendance-list'),               
+            attendanceClose: document.getElementById('attendance-close'),             
+            attendanceCancel: document.getElementById('attendance-cancel'),           
+            attendanceSave: document.getElementById('attendance-save'),               
         };
 
         this.dayNames = {
@@ -80,6 +125,65 @@ export class EventModal {
         this.elements.moveModalOk.addEventListener('click', () => this.moveEvent());
         this.elements.moveModalCancel.addEventListener('click', () => this.hideMoveModal());
         this.elements.moveOverlay.addEventListener('click', () => this.hideMoveModal());
+
+        // Обработчики модального окна выбора учеников
+        if (this.elements.addStudentsBtn) {
+            this.elements.addStudentsBtn.addEventListener('click', () => this.showStudentsModal());
+        }
+        if (this.elements.studentsOk) {
+            this.elements.studentsOk.addEventListener('click', () => {
+                this.applySelectedStudents()
+                this.hideStudentsModal();
+            });
+        }
+        if (this.elements.studentsCancel) {
+            this.elements.studentsCancel.addEventListener('click', () => this.hideStudentsModal());
+        }
+        if (this.elements.studentsClose) {
+            this.elements.studentsClose.addEventListener('click', () => this.hideStudentsModal());
+        }
+        if (this.elements.studentsOverlay) {
+            this.elements.studentsOverlay.addEventListener('click', () => this.hideStudentsModal());
+        }
+
+        // выбор курса
+        if (this.elements.courseSelect) {
+            this.elements.courseSelect.addEventListener('change', () => {
+                const value = this.elements.courseSelect.value;
+
+                if (value === '__add_new__') {
+                    this.elements.courseSelect.value = '';
+                    this.courseCreateModal.open((created) => this.onCourseCreated(created));
+                } else if (value === '__delete__') {
+                    this.elements.courseSelect.value = '';
+                    if (this._loadedCourses.length === 0) return;
+                    this.courseDeleteModal.open(this._loadedCourses, (id, mode) => this.onCourseDeleted(id, mode));
+                } else if (value) {                                          // ← ДОБАВЛЕНО
+                    // Обычный выбор курса — сохраняем ID
+                    this.selectedCourseId = parseInt(value, 10);             // ← ДОБАВЛЕНО
+                } else {                                                     // ← ДОБАВЛЕНО
+                    this.selectedCourseId = null;                            // ← ДОБАВЛЕНО
+                }
+            });
+        }        
+        
+        // модалка изменения посещаемости нескольких учеников в группе
+
+        if (this.elements.openAttendanceBtn) {                                                           
+            this.elements.openAttendanceBtn.addEventListener('click', () => this.openAttendanceModal()); 
+        }                                                                                                 
+        if (this.elements.attendanceClose) {                                                              
+            this.elements.attendanceClose.addEventListener('click', () => this.closeAttendanceModal());   
+        }                                                                                                 
+        if (this.elements.attendanceCancel) {                                                             
+            this.elements.attendanceCancel.addEventListener('click', () => this.closeAttendanceModal());  
+        }                                                                                                 
+        if (this.elements.attendanceOverlay) {                                                            
+            this.elements.attendanceOverlay.addEventListener('click', () => this.closeAttendanceModal()); 
+        }                                                                                                 
+        if (this.elements.attendanceSave) {                                                               
+            this.elements.attendanceSave.addEventListener('click', () => this.handleAttendanceSave());    
+        }                                                                                                 
     }
 
     // ПОКАЗАТЬ МОДАЛЬНОЕ ОКНО ПЕРЕНОСА
@@ -326,7 +430,7 @@ export class EventModal {
         this.elements.daysOverlay.style.display = 'none';
     }
 
-    show(eventData=null,cell=null, targetUserId = null) {
+    async show(eventData=null,cell=null, targetUserId = null) {
         this.currentCell = cell;
         this.selectedColor = null;
         this.targetUserId = targetUserId; // ← СОХРАНЯЕМ
@@ -366,6 +470,12 @@ export class EventModal {
 
         this.toggleDeleteButton();
         this.toggleMoveButton();
+        this.updateModalText();
+
+        // выбор курса
+        await this.loadCoursesForEvent();    // ДОБАВЛЕНО
+        this.updateCourseVisibility();       // ДОБАВЛЕНО
+
         this.showModal();
         this.elements.textInput.focus();
     }
@@ -387,6 +497,7 @@ export class EventModal {
 
     async save() {
         const eventData = this.getFormData();
+        if (!eventData) return;    // ДОБАВЛЕНО: валидация не прошла
         // ДОБАВЛЯЕМ: Устанавливаем created_by и canEdit для новых событий
         if (!this.isEditing) {
             const currentUserId = this.getCurrentUserId();
@@ -412,7 +523,7 @@ export class EventModal {
         if (!this.isEditing && this.targetUserId) {
             eventData.target_user_id = this.targetUserId;
         }
-        
+        console.log('📋 Выбранные ученики при сохранении:', this.selectedStudentIds);
         try {
             // ЕСЛИ ВЫБРАНЫ ДНИ - создаем события для каждого дня
             if (this.selectedDays.length > 0) {
@@ -541,6 +652,29 @@ export class EventModal {
 
         this.selectedDays = []; // Сбрасываем выбранные дни
         this.updateDaysButtonText();
+
+        // Сбрасываем выбранных учеников
+        this.selectedStudentIds = [];
+        if (this.elements.selectedStudentsList) {
+            this.elements.selectedStudentsList.innerHTML = '';
+        }
+
+        this.selectedCourseId = null;                                                  
+        if (this.elements.courseSelect) this.elements.courseSelect.value = '';         
+
+        if (this.elements.completionGroup) {                                             
+            this.elements.completionGroup.style.display = 'none';                         
+        }                                                                                 
+        if (this.elements.completionSelect) {                                              
+            this.elements.completionSelect.value = '';                                     
+        }
+
+
+        
+        if (this.elements.attendanceGroup) {                                                
+            this.elements.attendanceGroup.style.display = 'none';                           
+        }                                                                                    
+        this.currentEventData = null;                                                        
     }
 
     populateEditForm(eventData) {
@@ -566,6 +700,50 @@ export class EventModal {
         // Если передан overlay, сохраняем его ID
         if (eventData.overlay) {
             this.elements.eventIdInput.value = eventData.overlay.getAttribute('data-id');
+        }
+
+        // Восстанавливаем выбранных учеников из события
+        // Сервер отдаёт student_ids (массив) и students (объекты с full_name)
+        this.selectedStudentIds = Array.isArray(eventData.student_ids) ? [...eventData.student_ids] : [];
+        // Если сервер прислал объекты students — обновим кэш, чтобы чипы сразу отрисовались с именами
+        if (Array.isArray(eventData.students) && eventData.students.length > 0) {
+            eventData.students.forEach(s => {
+                if (!this.allStudents.find(x => x.id === s.id)) {
+                    this.allStudents.push({ id: s.id, full_name: s.full_name });
+                }
+            });
+        }
+        this.renderSelectedStudents();
+
+        if (eventData.course_id) {                                                    
+            this.selectedCourseId = eventData.course_id;                                
+        } 
+        
+        // ИЗМЕНЕНО: для группы — кнопка посещаемости, для инда — статус
+        const isGroup = eventData.status === 'group';
+
+        // Сохраняем данные события для модалки посещаемости
+        this.currentEventData = eventData;
+
+        if (isGroup) {
+            // Группа: кнопка «Посещаемость», статус скрыт
+            if (this.elements.attendanceGroup) {
+                this.elements.attendanceGroup.style.display = 'block';
+            }
+            if (this.elements.completionGroup) {
+                this.elements.completionGroup.style.display = 'none';
+            }
+        } else if (eventData.completion_status) {
+            // Инд с отметкой: показываем статус
+            if (this.elements.completionGroup) {
+                this.elements.completionGroup.style.display = 'block';
+            }
+            if (this.elements.completionSelect) {
+                this.elements.completionSelect.value = eventData.completion_status;
+            }
+            if (this.elements.attendanceGroup) {
+                this.elements.attendanceGroup.style.display = 'none';
+            }
         }
     }
 
@@ -646,6 +824,8 @@ export class EventModal {
             [EVENT_FIELDS.IS_RECURRING]: this.elements.recurringCheckbox.checked,
             [EVENT_FIELDS.DURATION]: duration,
             [EVENT_FIELDS.START_MINUTES]: minutes,
+            course_id: this.selectedCourseId,   // ДОБАВЛЕНО
+            completion_status: this.elements.completionSelect?.value || '',   // ДОБАВЛЕНО
         });
 
         // ✅ ДОБАВЛЯЕМ target_user_id ДЛЯ СОЗДАНИЯ В ЧУЖОМ РАСПИСАНИИ
@@ -655,91 +835,22 @@ export class EventModal {
 
         // console.log('📋 GET FORM DATA - final formData:', formData);
 
+        // ДОБАВЛЕНО: если есть ученики — курс обязателен
+        if (this.selectedStudentIds.length > 0 && !this.selectedCourseId) {
+            alert('Выберите курс для занятия с учениками');
+            return null;   // нужно будет обработать в save()
+        }
+
         // ✅ ИСПОЛЬЗУЕМ DTO ДЛЯ АВТОМАТИЧЕСКОЙ ПОДГОТОВКИ ДАННЫХ
         const dto = new EventDTO(formData);
-        return dto.toApiFormat();
+        const apiData = dto.toApiFormat();
+
+        // ✅ Добавляем student_ids напрямую, минуя DTO
+        // (student_ids нет в EVENT_STRUCTURE, но сервер его ждёт)
+        apiData.student_ids = this.selectedStudentIds || [];
+
+        return apiData;
     }
-
-    // buildBaseFormData() {
-    //     const duration = timeUtils.timeToDecimal(this.elements.durationInput.value);
-    //     const minutes = parseInt(this.elements.startMinutesInput.value) || 0;
-
-    //     return {
-    //         [EVENT_FIELDS.ID]: this.elements.eventIdInput.value || null,
-    //         [EVENT_FIELDS.TEXT]: this.elements.textInput.value,
-    //         [EVENT_FIELDS.COLOR]: this.selectedColor || 'blue',
-    //         [EVENT_FIELDS.IS_RECURRING]: this.elements.recurringCheckbox.checked,
-    //         [EVENT_FIELDS.DURATION]: duration,
-    //         [EVENT_FIELDS.START_MINUTES]: minutes,
-    //         [EVENT_FIELDS.CREATED_BY]: this.getCreatedByValue(),
-    //         target_user_id: this.getTargetUserId()
-    //     };
-    // }
-
-    // getCreatedByValue() {
-    //     if (this.isEditing && this.currentEvent?.created_by) {
-    //         return this.currentEvent.created_by;
-    //     }
-        
-    //     const currentUserId = this.getCurrentUserId();
-    //     return currentUserId ? Number(currentUserId) : null;
-    // }
-
-    // getTargetUserId() {
-    //     return (!this.isEditing && this.targetUserId) ? this.targetUserId : null;
-    // }
-
-    // getFormData() {
-    //     const formData = this.buildBaseFormData();
-        
-    //     if (this.isEditing && this.currentEvent) {
-    //         Object.assign(formData, this.currentEvent);
-    //         this.updateTimeForEditing(formData);
-    //     } else if (this.currentCell) {
-    //         this.setNewEventData(formData);
-    //     }
-
-    //     console.log('📋 GET FORM DATA - final formData:', formData);
-    //     return new EventDTO(formData).toApiFormat();
-    // }
-
-    // /**
-    //  * Обновляет время для редактируемого события
-    //  * Сохраняет часы из существующего события + минуты из формы
-    //  */
-    // updateTimeForEditing(formData) {
-    //     const minutes = formData[EVENT_FIELDS.START_MINUTES] || 0;
-        
-    //     // Берем часы из существующего события
-    //     const existingDto = new EventDTO(this.currentEvent);
-    //     const hours = existingDto.getHours();
-        
-    //     // Формируем полное время: часы из события + минуты из формы
-    //     formData[EVENT_FIELDS.TIME] = 
-    //         `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    // }
-
-    // /**
-    //  * Устанавливает данные для нового события
-    //  * Берет дату и время из ячейки, устанавливает контекст
-    //  */
-    // setNewEventData(formData) {
-    //     // Устанавливаем дату из ячейки
-    //     formData[EVENT_FIELDS.DATE] = this.currentCell.getAttribute('data-date');
-        
-    //     // Формируем время: часы из ячейки + минуты из формы
-    //     const minutes = formData[EVENT_FIELDS.START_MINUTES] || 0;
-    //     const cellTime = this.currentCell.getAttribute('data-time'); // "08:00"
-    //     const cellHours = cellTime.split(':')[0];
-        
-    //     formData[EVENT_FIELDS.TIME] = 
-    //         `${cellHours}:${minutes.toString().padStart(2, '0')}`;
-        
-    //     // Устанавливаем target_user_id если создаем в чужом расписании
-    //     if (this.targetUserId) {
-    //         formData.target_user_id = this.targetUserId;
-    //     }
-    // }
 
     validateTimeInput(input) {
         return timeUtils.validateTimeInput(input);
@@ -755,8 +866,295 @@ export class EventModal {
         this.elements.moveButton.style.display = hasEvent ? 'inline-block' : 'none';
     }
 
+
+    /* =====================================================
+   Модальное окно выбора учеников
+   ===================================================== */
+
+    async showStudentsModal() {
+        // Открываем окно
+        if (this.elements.studentsModal) this.elements.studentsModal.style.display = 'block';
+        if (this.elements.studentsOverlay) this.elements.studentsOverlay.style.display = 'block';
+
+        // Загружаем список учеников
+        await this.loadStudentsList();
+    }
+
+    hideStudentsModal() {
+        if (this.elements.studentsModal) this.elements.studentsModal.style.display = 'none';
+        if (this.elements.studentsOverlay) this.elements.studentsOverlay.style.display = 'none';
+    }
+
+    async loadStudentsList() {
+        const container = this.elements.studentsList;
+        if (!container) return;
+
+        // Показываем "загрузка..."
+        container.innerHTML = '<div class="event-students-loading">Загрузка...</div>';
+
+        try {
+            const response = await fetch('/api/load-students/', {
+                method: 'GET',
+                cache: 'no-store',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                this.allStudents = data.students; 
+                this.renderStudentCheckboxes(data.students);
+            } else {
+                container.innerHTML = `<div class="event-students-error">${data.message || 'Ошибка загрузки'}</div>`;
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки учеников:', error);
+            container.innerHTML = '<div class="event-students-error">Ошибка сети</div>';
+        }
+    }
+
+    renderStudentCheckboxes(students) {
+        const container = this.elements.studentsList;
+        if (!container) return;
+
+        if (!students || students.length === 0) {
+            container.innerHTML = '<div class="event-students-empty">Пока нет добавленных учеников</div>';
+            return;
+        }
+
+        // Рендерим строки: имя слева, чекбокс справа
+        container.innerHTML = students.map(s => {
+            // Проверяем, выбран ли этот ученик ранее
+            const checked = this.selectedStudentIds.includes(s.id) ? 'checked' : '';
+            return `
+                <label class="event-student-row">
+                    <span class="event-student-name">${this.escapeHtml(s.full_name)}</span>
+                    <input type="checkbox" value="${s.id}" ${checked}>
+                </label>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Собирает выбранные чекбоксы, сохраняет ID, рендерит чипы, закрывает модалку
+     */
+    applySelectedStudents() {
+        const container = this.elements.studentsList;
+        if (!container) return;
+
+        const checked = container.querySelectorAll('input[type="checkbox"]:checked');
+        this.selectedStudentIds = Array.from(checked).map(cb => parseInt(cb.value, 10));
+
+        this.renderSelectedStudents();
+        this.hideStudentsModal();
+    }
+    /**
+     * Рендерит список выбранных учеников в основной модалке
+     * (простой скроллируемый список без кнопок удаления)
+     */
+    renderSelectedStudents() {
+        const container = this.elements.selectedStudentsList;
+        if (!container) return;
+
+        if (this.selectedStudentIds.length === 0) {
+            container.innerHTML = '';
+            this.updateModalText();
+            return;
+        }
+
+        container.innerHTML = this.selectedStudentIds.map(id => {
+            const student = this.allStudents.find(s => s.id === id);
+            const name = student ? student.full_name : `ID ${id}`;
+            return `
+                <a class="selected-student-row"
+                href="/students/${id}/"
+                title="Открыть профиль">${this.escapeHtml(name)}</a>
+            `;
+        }).join('');
+
+        this.updateModalText();
+        this.updateCourseVisibility();   // ДОБАВЛЕНО
+    }
+
+    /**
+     * Обновляет заголовок и placeholder в зависимости от наличия учеников
+     */
+    updateModalText() {
+        const hasStudents = this.selectedStudentIds.length > 0;
+        const action = this.isEditing ? 'Редактировать' : 'Добавить';
+        const object = hasStudents ? 'занятие' : 'событие';
+
+        if (this.elements.modalTitle) {
+            this.elements.modalTitle.textContent = `${action} ${object}`;
+        }
+        if (this.elements.textInput) {
+            this.elements.textInput.placeholder = hasStudents
+                ? 'Заметка к занятию'
+                : 'Введите текст события';
+        }
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    getCsrfToken() {
+        const name = 'csrftoken';
+        const cookies = document.cookie.split(';');
+        for (const cookie of cookies) {
+            const trimmed = cookie.trim();
+            if (trimmed.startsWith(name + '=')) {
+                return decodeURIComponent(trimmed.substring(name.length + 1));
+            }
+        }
+        return '';
+    }
+
     showModal() {
         this.elements.modal.style.display = 'block';
         this.elements.overlay.style.display = 'block';
+    }
+
+
+    // выбор курса
+     async loadCoursesForEvent() {
+        if (!this.elements.courseSelect) return;
+        this.elements.courseSelect.innerHTML = '<option value="" disabled selected>— Выберите курс —</option>';
+        try {
+            const response = await fetch('/api/load-courses/', {
+                cache: 'no-store',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await response.json();
+            if (data.status === 'success') {
+                this._loadedCourses = data.courses;
+                this.renderCourseOptions(data.courses);
+            }
+        } catch (error) {
+            console.error('❌ Ошибка load-courses:', error);
+        }
+    }
+
+    renderCourseOptions(courses) {
+        const options = courses.map(c =>
+            `<option value="${c.id}">${this.escapeHtml(c.name)}</option>`
+        ).join('');
+        const deleteOption = courses.length > 0
+            ? '<option value="__delete__">— Удалить курс —</option>'
+            : '';
+        this.elements.courseSelect.innerHTML = `
+            <option value="" disabled selected>— Выберите курс —</option>
+            ${options}
+            <option value="__add_new__">+ Добавить курс</option>
+            ${deleteOption}
+        `;
+        if (this.selectedCourseId) {
+            this.elements.courseSelect.value = String(this.selectedCourseId);
+        }
+    }
+
+    onCourseCreated(created) {
+        const option = document.createElement('option');
+        option.value = created.id;
+        option.textContent = created.name;
+        const addNewOption = this.elements.courseSelect.querySelector('option[value="__add_new__"]');
+        if (addNewOption) this.elements.courseSelect.insertBefore(option, addNewOption);
+        else this.elements.courseSelect.appendChild(option);
+        this._loadedCourses.push({ id: created.id, name: created.name });
+        this.elements.courseSelect.value = created.id;
+        this.selectedCourseId = created.id;
+    }
+
+    onCourseDeleted(deletedId, mode) {
+        this._loadedCourses = this._loadedCourses.filter(c => c.id !== deletedId);
+        if (this.selectedCourseId === deletedId) this.selectedCourseId = null;
+        this.renderCourseOptions(this._loadedCourses);
+    }
+
+    updateCourseVisibility() {
+        if (!this.elements.courseGroup) return;
+        const hasStudents = this.selectedStudentIds.length > 0;
+        this.elements.courseGroup.style.display = hasStudents ? 'block' : 'none';
+        if (!hasStudents) {
+            if (this.elements.courseSelect) this.elements.courseSelect.value = '';
+            this.selectedCourseId = null;
+        }
+    }
+
+
+    openAttendanceModal() {
+        if (!this.currentEventData || !this.elements.attendanceList) return;
+
+        const students = this.currentEventData.students || [];
+        if (students.length === 0) {
+            this.elements.attendanceList.innerHTML = '<div class="empty-state">Нет учеников</div>';
+        } else {
+            this.elements.attendanceList.innerHTML = students.map(s => {
+                const checked = s.was_present === true ? 'checked' : '';
+                // ДОБАВЛЕНО: суффикс с оставшимися оплатами
+                const suffix = (s.remaining_lessons !== null && s.remaining_lessons !== undefined)
+                    ? ` (${s.remaining_lessons})`
+                    : '';
+                return `
+                    <label class="attendance-row">
+                        <input type="checkbox" value="${s.id}" ${checked}>
+                        <span class="attendance-name">${this.escapeHtml(s.full_name)}${suffix}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        if (this.elements.attendanceModal) this.elements.attendanceModal.classList.add('active');
+        if (this.elements.attendanceOverlay) this.elements.attendanceOverlay.classList.add('active');
+    }
+
+    closeAttendanceModal() {
+        if (this.elements.attendanceModal) this.elements.attendanceModal.classList.remove('active');
+        if (this.elements.attendanceOverlay) this.elements.attendanceOverlay.classList.remove('active');
+    }
+
+    async handleAttendanceSave() {
+        if (!this.currentEventData) return;
+
+        const eventId = this.currentEventData.id;
+        const checkboxes = this.elements.attendanceList.querySelectorAll('input[type="checkbox"]');
+        const attendances = Array.from(checkboxes).map(cb => ({
+            student_id: parseInt(cb.value, 10),
+            was_present: cb.checked,
+        }));
+
+        this.elements.attendanceSave.disabled = true;
+        this.elements.attendanceSave.textContent = 'Сохранение...';
+
+        try {
+            const response = await fetch('/api/mark-event/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken(),
+                },
+                body: JSON.stringify({ id: eventId, attendances }),
+            });
+            const data = await response.json();
+            console.log('📥 Ответ mark-event (группа):', data);
+
+            if (data.status === 'success') {
+                this.closeAttendanceModal();
+                this.hide();
+                // Перезагружаем события недели, чтобы обновить счётчики на карточках
+                if (this.eventManager && this.eventManager.loadEventsForWeek) {
+                    this.eventManager.loadEventsForWeek();
+                }
+            } else {
+                alert('Ошибка: ' + (data.message || 'не удалось сохранить'));
+            }
+        } catch (error) {
+            console.error('❌ Ошибка mark-event:', error);
+            alert('Ошибка сети');
+        } finally {
+            this.elements.attendanceSave.disabled = false;
+            this.elements.attendanceSave.textContent = 'Сохранить';
+        }
     }
 }

@@ -23,8 +23,11 @@ export const eventUtils = {
             }
         });
         
-        // Текст берем из содержимого
-        rawData.text = overlay.textContent || '';
+        // Fallback: если data-text нет, берём textContent
+        // (но НЕ перезаписываем, если data-text уже получен из атрибута)
+        if (!overlay.hasAttribute('data-text')) {
+            rawData.text = overlay.textContent || '';
+        }
         
         // Overlay - это сам элемент
         rawData.overlay = overlay;

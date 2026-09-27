@@ -1,0 +1,14 @@
+/* =====================================================
+   Специфика модалок курса: z-index выше остальных.
+   Всё остальное — в modals_common.css.
+   ===================================================== */
+
+#course-create-modal,
+#course-delete-modal {
+    z-index: 1200;
+}
+
+#course-create-overlay,
+#course-delete-overlay {
+    z-index: 1199;
+}

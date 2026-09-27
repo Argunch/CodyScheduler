@@ -1,0 +1,307 @@
+/* =====================================================
+   Страница одного ученика
+   ===================================================== */
+
+.student-detail-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: inherit;
+    color: #333;
+}
+
+.student-detail-header {
+    margin-bottom: 24px;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid #dde5ef;
+    border-radius: 6px;
+    color: #555;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.back-link:hover {
+    background: white;
+    border-color: #279FF5;
+    color: #279FF5;
+    text-decoration: none;
+}
+
+
+.student-detail-name {
+    margin: 0 0 6px 0;
+    font-size: 28px;
+    color: #333;
+}
+
+.student-detail-created {
+    margin: 0 0 30px 0;
+    font-size: 14px;
+    color: #999;
+}
+
+/* Секции (Баланс / Оплаты) */
+.student-section {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+}
+
+.student-section h2 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.balance-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #279FF5;
+}
+
+.empty-state {
+    font-size: 14px;
+    color: #999;
+    font-style: italic;
+    padding: 10px 0;
+}
+
+/* Кнопки в шапке профиля */
+.student-detail-actions {
+    margin-bottom: 30px;
+}
+
+.btn-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    background: #279FF5;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.btn-edit:hover {
+    background: #138ECF;
+}
+
+/* Шапка секции с кнопкой */
+.student-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.student-section-header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Кнопка "+ Добавить" */
+.btn-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    background: #eaf4ff;
+    color: #279FF5;
+    border: 1px solid #cfe5ff;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+.btn-add:hover {
+    background: #d7eaff;
+    border-color: #279FF5;
+}
+
+.form-error {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: #ffeaea;
+    color: #d32f2f;
+    border: 1px solid #ffcdd2;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+* Список цен на курсы */
+.course-prices-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.course-price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.course-price-name {
+    color: #333;
+    font-weight: 500;
+}
+
+.course-price-value {
+    color: #279FF5;
+    font-weight: 600;
+}
+
+.course-prices-empty {
+    color: #999;
+    font-style: italic;
+    font-size: 14px;
+    padding: 10px 0;
+}
+
+.course-price-row {
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+.course-price-row:hover {
+    background: #f0f7ff;
+    border-color: #cfe5ff;
+}
+
+/* Список оплат */
+.payments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.payments-empty {
+    color: #999;
+    font-style: italic;
+    font-size: 14px;
+    padding: 10px 0;
+}
+
+
+
+.payment-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+.payment-row:hover {
+    background: #f0f7ff;
+    border-color: #cfe5ff;
+}
+
+.payment-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.payment-course {
+    color: #333;
+    font-weight: 500;
+}
+
+.payment-date {
+    color: #999;
+    font-size: 12px;
+}
+
+.payment-amount {
+    color: #2e7d32;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+
+
+/* Разбивка баланса по курсам */
+.balance-by-course {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.balance-course-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.balance-course-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.balance-course-name {
+    color: #333;
+    font-weight: 500;
+}
+
+.balance-course-lessons {
+    color: #999;
+    font-size: 12px;
+}
+
+.balance-course-amount {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.balance-course-amount.positive { color: #2e7d32; }
+.balance-course-amount.negative { color: #d32f2f; }
+.balance-course-amount.zero     { color: #999; }
+
+.balance-empty {
+    color: #999;
+    font-style: italic;
+    font-size: 14px;
+    padding: 10px 0;
+}
+
+/* Отрицательный общий баланс — долг */
+.balance-value.negative {
+    color: #d32f2f;
+}

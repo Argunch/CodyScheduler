@@ -20,6 +20,11 @@ from . import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name="home"),
-    path('api/', include('scheduler.urls')),  # ← подключаем URLs приложения
-    path('accounts/', include('django.contrib.auth.urls')),  # ← Добавляем
+    path('accounts/', include('django.contrib.auth.urls')),
+
+    # 1. Подключаем HTML-страницы приложения
+    path('', include('scheduler.urls')), 
+
+    # 2. Подключаем API приложения
+    path('api/', include('scheduler.api_urls')),
 ]

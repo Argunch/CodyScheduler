@@ -13,6 +13,11 @@ class EventManager:
         """Основной метод сохранения/обновления события"""
         # 1. Парсим данные
         parsed_data = self.parse_event_data(data)
+
+        # ДОБАВЛЕНО: если есть ученики — курс обязателен
+        student_ids = parsed_data.get('student_ids') or []
+        if student_ids and not parsed_data.get('course_id'):
+            raise ValueError('Для занятия с учениками нужен курс')
         
         # 2. Получаем ID события
         event_id = data.get('id')
@@ -86,7 +91,15 @@ class EventManager:
         else:
             event = self._update_single_event(event, parsed_data)
         
-        return {'status': 'success', 'created': False, 'id': event.id}
+        return {
+            'status': 'success',
+            'created': False,
+            'id': event.id,
+            'student_ids': list(event.students.values_list('id', flat=True)),   # NEW
+            'students': [                                                       # NEW
+                {'id': s.id, 'full_name': str(s)} for s in event.students.all()
+            ],
+        }
     
     def _convert_to_recurring(self,event,parsed_data):
         # Создаем новую серию
@@ -102,6 +115,13 @@ class EventManager:
         event.series_id = series
         event.save()
 
+        # NEW: обновляем учеников у текущего события
+        if parsed_data['student_ids'] is not None:
+            event.students.set(parsed_data['student_ids'])
+
+        if parsed_data.get('course_id') is not None:                                 # ДОБАВЛЕНО
+            event.course_id = parsed_data['course_id'] or None                       # ДОБАВЛЕНО
+
         # Создаем будущие события
         self._create_future_recurring_events(
             start_date=parsed_data['date_obj'] + timedelta(weeks=1),  # ← используем новую дату
@@ -110,7 +130,8 @@ class EventManager:
             color=parsed_data['color'],
             duration=parsed_data['duration'],
             series=series,
-            weeks_ahead=51
+            weeks_ahead=51,
+            student_ids=parsed_data['student_ids'],
         )
 
         return event
@@ -134,6 +155,14 @@ class EventManager:
             if str(ev.time) != parsed_data['time_str']:
                 ev.time = parsed_data['time_obj']
             ev.save()
+
+            # NEW: обновляем учеников у каждого события серии
+            if parsed_data['student_ids'] is not None:
+                ev.students.set(parsed_data['student_ids'])
+
+            if parsed_data.get('course_id') is not None:                                 # ДОБАВЛЕНО
+                event.course_id = parsed_data['course_id'] or None                       # ДОБАВЛЕНО
+
         return event
 
     def _convert_recurring_to_single(self,event,parsed_data):
@@ -142,6 +171,8 @@ class EventManager:
         original_text = event.text
         original_color = event.color
         original_duration = event.duration
+         # NEW: запоминаем старых учеников — они останутся у новой серии
+        original_student_ids = list(event.students.values_list('id', flat=True))
 
         # 1. Удаляем все будущие события старой серии (но НЕ трогаем текущее)
         ScheduleEvent.objects.filter(
@@ -173,7 +204,8 @@ class EventManager:
                 original_color,
                 original_duration,
                 new_series_id,
-                weeks_ahead=52
+                weeks_ahead=52,
+                student_ids=original_student_ids,   # NEW
             )
 
         # 3. Обновляем текущее событие → превращаем в одиночное
@@ -182,6 +214,13 @@ class EventManager:
         event.is_recurring = False
         event.duration = parsed_data['duration']
         event.save()
+
+        # NEW: обновляем учеников у текущего события
+        if parsed_data['student_ids'] is not None:
+            event.students.set(parsed_data['student_ids'])
+
+        if parsed_data.get('course_id') is not None:                                 # ДОБАВЛЕНО
+            event.course_id = parsed_data['course_id'] or None                       # ДОБАВЛЕНО
 
         return event
 
@@ -194,6 +233,28 @@ class EventManager:
         event.is_recurring = False
         event.duration = parsed_data['duration']
         event.save()
+
+        # NEW: если фронт передал student_ids — заменяем состав
+        if parsed_data['student_ids'] is not None:
+            event.students.set(parsed_data['student_ids'])
+
+        if parsed_data.get('course_id') is not None:                                 # ДОБАВЛЕНО
+            event.course_id = parsed_data['course_id'] or None                       # ДОБАВЛЕНО
+
+        # ДОБАВЛЕНО: если пришёл completion_status — обновляем и синхронизируем списание
+        new_completion = parsed_data.get('completion_status')
+        if new_completion is not None and new_completion != event.completion_status:
+            from django.utils import timezone
+            event.completion_status = new_completion
+            if new_completion:
+                event.completed_at = timezone.now()
+            else:
+                event.completed_at = None
+            event.save(update_fields=['completion_status', 'completed_at'])
+
+            # Синхронизируем charge для каждого ученика (для индов — один)
+            for student in event.students.all():
+                self._sync_charge_for_event(event, student)
 
         return event
     
@@ -211,19 +272,31 @@ class EventManager:
         """Создание нового события"""
         if not parsed_data['is_recurring']:
             event = self.create_single_event(parsed_data)
-            return {'status': 'success', 'created': True, 'id': event.id}
+            return {
+                'status': 'success',
+                'created': True,
+                'id': event.id,
+                'student_ids': list(event.students.values_list('id', flat=True)),
+                'students': [
+                    {'id': s.id, 'full_name': str(s)} for s in event.students.all()
+                ],
+            }
         else:
             event, series_id = self.create_recurring_events(parsed_data)
             return {
-                'status': 'success', 
-                'created': True, 
-                'id': event.id, 
-                'series_id': str(series_id)
+                'status': 'success',
+                'created': True,
+                'id': event.id,
+                'series_id': str(series_id),
+                'student_ids': list(event.students.values_list('id', flat=True)),
+                'students': [
+                    {'id': s.id, 'full_name': str(s)} for s in event.students.all()
+                ],
             }
     
     def create_single_event(self, parsed_data):
         """Создание разового события"""
-        return ScheduleEvent.objects.create(
+        event=ScheduleEvent.objects.create(
             user=self.target_user,
             date=parsed_data['date_obj'],
             time=parsed_data['time_obj'],
@@ -231,8 +304,13 @@ class EventManager:
             color=parsed_data['color'],
             is_recurring=False,
             duration=parsed_data['duration'],
+            course_id=parsed_data.get('course_id') or None,   # ДОБАВЛЕНО
             created_by=self.request_user
         )
+        # NEW: привязываем учеников (если переданы)
+        if parsed_data['student_ids']:
+            event.students.set(parsed_data['student_ids'])
+        return event
     
     def create_recurring_events(self, parsed_data):
         """Создание серии регулярных событий"""
@@ -248,8 +326,13 @@ class EventManager:
             is_recurring=True,
             duration=parsed_data['duration'],
             series_id=series,
+            course_id=parsed_data.get('course_id') or None,   # ДОБАВЛЕНО
             created_by=self.request_user
         )
+
+         # NEW: привязываем к первому событию
+        if parsed_data['student_ids']:
+            first_event.students.set(parsed_data['student_ids'])
         
         # Создаем будущие события (начиная со следующей недели)
         self._create_future_recurring_events(
@@ -259,12 +342,14 @@ class EventManager:
             color=parsed_data['color'],
             duration=parsed_data['duration'],
             series=series,
-            weeks_ahead=51  # чтобы всего было 52 недели
+            weeks_ahead=51,  # чтобы всего было 52 недели
+            student_ids=parsed_data['student_ids'],   # NEW
+            course_id=parsed_data.get('course_id') or None,   # ДОБАВЛЕНО
         )
         
         return first_event, series
     
-    def _create_future_recurring_events(self, start_date, time, text, color, duration=1.0, series=None, weeks_ahead=52):
+    def _create_future_recurring_events(self, start_date, time, text, color, duration=1.0, series=None, weeks_ahead=52, student_ids=None,course_id=None):
         """Создает регулярные события на год вперед"""
         try:
             for week in range(0, weeks_ahead + 1):
@@ -273,7 +358,7 @@ class EventManager:
                 if ScheduleEvent.objects.filter(user=self.target_user, date=event_date, time=time).exists():
                     continue
 
-                ScheduleEvent.objects.create(
+                ev=ScheduleEvent.objects.create(
                     user=self.target_user,
                     date=event_date,
                     time=time,
@@ -281,8 +366,12 @@ class EventManager:
                     color=color,
                     is_recurring=True,
                     duration=duration,
-                    series_id=series
+                    series_id=series,
+                    course_id=course_id
                 )
+                # NEW: привязываем учеников к каждому событию серии
+                if student_ids:
+                    ev.students.set(student_ids)
         except Exception as e:
             print(f"[ERROR] in create_recurring_events: {str(e)}")
             raise e
@@ -315,10 +404,213 @@ class EventManager:
             'color': data.get('color', ''),
             'is_recurring': data.get('is_recurring', False),
             'duration': data.get('duration', 1.0),
-            'time_str': time_str  # сохраняем для сравнения
+            'time_str': time_str,  # сохраняем для сравнения
+            'student_ids': data.get('student_ids', None),   # NEW: None = не трогать
+            'course_id': data.get('course_id'),   # ДОБАВЛЕНО
+            'completion_status': data.get('completion_status'),    # ДОБАВЛЕНО
         }
+
+    def _sync_charge_for_event(self, event, student):
+        """
+        Синхронизирует списание (BalanceOperation type=charge) для события и ученика.
+        - Если статус события = passed и есть курс с ценой — создаёт или обновляет списание.
+        - Если статус не passed — удаляет существующее списание.
+        """
+        from .models import StudentCoursePrice, BalanceOperation
+
+        # Удаляем предыдущее списание по этому событию и ученику (если было)
+        BalanceOperation.objects.filter(
+            event=event,
+            student=student,
+            operation_type=BalanceOperation.TYPE_CHARGE,
+        ).delete()
+
+        # ИЗМЕНЕНО: списываем при passed или missed_student
+        chargeable = (
+            event.completion_status == ScheduleEvent.COMPLETION_PASSED
+            or event.completion_status == ScheduleEvent.COMPLETION_MISSED_STUDENT
+        )
+        if not chargeable:
+            return
+
+        # Нет курса — списывать нечего
+        if not event.course_id:
+            print(f'[charge] У события {event.id} нет курса — списание не создано')
+            return
+
+        # Нет цены для пары (ученик, курс) — списывать нечего
+        price_obj = StudentCoursePrice.objects.filter(
+            student=student,
+            course_id=event.course_id,
+        ).first()
+        if not price_obj or price_obj.price_per_lesson <= 0:
+            print(f'[charge] У ученика {student.id} нет цены на курс {event.course_id} — списание не создано')
+            return
+
+        # Создаём списание
+        BalanceOperation.objects.create(
+            student=student,
+            course_id=event.course_id,
+            amount=-price_obj.price_per_lesson,       # отрицательное!
+            operation_type=BalanceOperation.TYPE_CHARGE,
+            operation_date=event.date,
+            event=event,
+            created_by=self.request_user,
+        )
+        print(f'[charge] Списано {price_obj.price_per_lesson}₽ с {student} за событие {event.id}')
     
     def _check_permissions(self, event):
         """Проверка прав доступа"""
         if not self.request_user.is_superuser and event.created_by != self.request_user:
             raise PermissionError('Недостаточно прав для редактирования этого события')
+
+    def load_unmarked_events(self):
+        """
+        Возвращает список непроверенных занятий (инд. и групповых)
+        за последние 7 дней, которые уже закончились.
+        """
+        from django.utils import timezone
+
+        now = timezone.localtime()
+        week_ago = now - timedelta(days=7)
+
+        qs = ScheduleEvent.objects.filter(
+            user=self.target_user,
+            status__in=[
+                ScheduleEvent.STATUS_INDIVIDUAL,
+                ScheduleEvent.STATUS_GROUP,
+            ],
+            completion_status='',
+            date__gte=week_ago.date(),
+        ).prefetch_related('students').order_by('date', 'time')
+
+        result = []
+        for event in qs:
+            if not event.is_finished(now=now):
+                continue
+
+            # Текущие отметки (если есть) — чтобы фронт мог их предзаполнить
+            existing = {
+                a.student_id: a.was_present
+                for a in event.attendances.all()
+            }
+
+            result.append({
+                'id': event.id,
+                'status': event.status,   # 'individual' / 'group'
+                'date': event.date.strftime('%Y-%m-%d'),
+                'time': event.time.strftime('%H:%M'),
+                'text': event.text or 'Без названия',
+                'duration': float(event.duration),
+                'student_ids': list(event.students.values_list('id', flat=True)),
+                'students': [
+                    {
+                        'id': s.id,
+                        'full_name': str(s),
+                        'was_present': existing.get(s.id),  # None или bool
+                        'remaining_lessons': s.get_remaining_lessons(event.course), 
+                    }
+                    for s in event.students.all()
+                ],
+            })
+
+        return result
+
+    def mark_event(self, event_id, completion_status=None, attendances=None):
+        """
+        Ставит отметку проведения на занятие.
+        - Для индивидуальных: completion_status обязателен, Attendance создаётся автоматически.
+        - Для групповых: attendances — массив [{student_id, was_present}],
+          completion_status вычисляется автоматически.
+        """
+        from django.utils import timezone
+        from .models import Attendance
+
+        try:
+            event = ScheduleEvent.objects.get(id=event_id, user=self.target_user)
+        except ScheduleEvent.DoesNotExist:
+            raise ScheduleEvent.DoesNotExist('Событие не найдено')
+
+        now = timezone.now()
+
+        # ─── ГРУППОВОЕ ────────────────────────────────
+        if event.status == ScheduleEvent.STATUS_GROUP:
+            if not attendances:
+                raise ValueError('Для группового занятия нужен список посещений')
+
+            # Проверяем, что все student_id принадлежат этому событию
+            valid_ids = set(event.students.values_list('id', flat=True))
+            incoming_ids = {int(a['student_id']) for a in attendances}
+            unknown = incoming_ids - valid_ids
+            if unknown:
+                raise ValueError(f'Ученики не привязаны к занятию: {unknown}')
+
+            # Обновляем/создаём Attendance для каждого ученика
+            for att in attendances:
+                Attendance.objects.update_or_create(
+                    event=event,
+                    student_id=int(att['student_id']),
+                    defaults={'was_present': bool(att['was_present'])},
+                )
+
+            # Автоматически вычисляем статус: хотя бы один был → passed
+            was_any = any(bool(a['was_present']) for a in attendances)
+            event.completion_status = (
+                ScheduleEvent.COMPLETION_PASSED if was_any
+                else ScheduleEvent.COMPLETION_NOT_CONDUCTED
+            )
+            event.completed_at = now
+            event.save(update_fields=['completion_status', 'completed_at'])
+
+            # ДОБАВЛЕНО: синхронизируем списания для всех учеников группы
+            for stu in event.students.all():
+                self._sync_charge_for_event(event, stu)
+
+            return {
+                'id': event.id,
+                'completion_status': event.completion_status,
+                'completed_at': event.completed_at.isoformat(),
+            }
+
+        # ─── ИНДИВИДУАЛЬНОЕ ──────────────────────────
+        if event.status == ScheduleEvent.STATUS_INDIVIDUAL:
+            allowed = {c[0] for c in ScheduleEvent.COMPLETION_CHOICES}
+            if completion_status not in allowed:
+                raise ValueError(f'Недопустимый статус: {completion_status}')
+
+            event.completion_status = completion_status
+            event.completed_at = now
+            event.save(update_fields=['completion_status', 'completed_at'])
+
+            # Автоматически создаём Attendance для единственного ученика
+            was_present = (completion_status == ScheduleEvent.COMPLETION_PASSED)
+            student = event.students.first()
+            if student:
+                Attendance.objects.update_or_create(
+                    event=event,
+                    student=student,
+                    defaults={'was_present': was_present},
+                )
+
+            # Автоматически создаём Attendance
+            was_present = (completion_status == ScheduleEvent.COMPLETION_PASSED)
+            student = event.students.first()
+            if student:
+                Attendance.objects.update_or_create(
+                    event=event,
+                    student=student,
+                    defaults={'was_present': was_present},
+                )
+
+            # ДОБАВЛЕНО: списание за занятие, если статус = passed
+            self._sync_charge_for_event(event, student)
+
+            return {
+                'id': event.id,
+                'completion_status': event.completion_status,
+                'completed_at': event.completed_at.isoformat(),
+            }
+
+        # ─── ЗАМЕТКА (не должна сюда попадать) ──────
+        raise ValueError('Нельзя отметить заметку — только занятие')
+

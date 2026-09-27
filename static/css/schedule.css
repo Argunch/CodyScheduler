@@ -40,6 +40,10 @@
     box-sizing: border-box;
     z-index: 6;
     transition: opacity 0.2s;
+
+    white-space: pre-line;         /* ← NEW: сохраняет \n */
+    word-break: break-word;        /* ← NEW: длинные слова переносит, а не вылезают */
+    line-height: 1.2;              /* ← NEW: чуть плотнее, чтобы больше влезло */
 }
 
 .event-item:hover {
@@ -57,6 +61,46 @@
 .event-item.short {
     font-size: 14px;
     padding: 4px 6px;
+}
+
+/* Двухстрочное событие с учеником */
+.event-item.with-student {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 6px;
+    overflow: hidden;
+}
+
+.event-item .event-title {
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.15;
+}
+
+.event-item .event-student-name {
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.75);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.15;
+}
+
+/* Компактный вариант для коротких событий (< 1.5ч) */
+.event-item.short.with-student {
+    padding: 2px 4px;
+    gap: 0;
+}
+.event-item.short .event-title {
+    font-size: 11px;
+}
+.event-item.short .event-student-name {
+    font-size: 10px;
 }
 
 

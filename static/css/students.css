@@ -1,0 +1,345 @@
+@import url('forms_common.css');
+@import url('modals_common.css');
+
+/* =========================================
+   Основной контейнер и шапка
+   ========================================= */
+.students-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: inherit;
+    color: #333;
+}
+
+.students-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #eee;
+}
+
+.students-header h1 {
+    margin: 0;
+    font-size: 24px;
+    color: #333;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid #dde5ef;
+    border-radius: 6px;
+    color: #555;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.back-link:hover {
+    background: white;
+    border-color: #279FF5;
+    color: #279FF5;
+    text-decoration: none;
+}
+
+/* =========================================
+   Кнопка добавления
+   ========================================= */
+.students-main {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.add-student-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background-color: #279FF5;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    align-self: flex-start;
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 2px 4px rgba(39, 159, 245, 0.3);
+}
+
+.add-student-btn:hover {
+    background-color: #138ECF;
+}
+
+.add-student-btn:active {
+    transform: translateY(1px);
+}
+
+.btn-icon {
+    font-size: 20px;
+    line-height: 1;
+    font-weight: bold;
+}
+
+/* =========================================
+   Список учеников (карточки)
+   ========================================= */
+.students-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Эти классы сгенерирует твой JavaScript */
+.student-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    transition: box-shadow 0.2s, background-color 0.2s;
+}
+
+.student-item:hover {
+    background-color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.student-info {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+}
+
+.student-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.student-actions button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-edit {
+    background-color: #f0f0f0;
+    color: #333;
+}
+.btn-edit:hover { background-color: #e0e0e0; }
+
+.btn-delete {
+    background-color: #ffeaea;
+    color: #d32f2f;
+}
+.btn-delete:hover { background-color: #ffcdd2; }
+
+/* =========================================
+   Модальные окна (в стиле расписания)
+   ========================================= */
+.modal {
+    display: none; /* Скрыто по умолчанию */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    width: 90%;
+    max-width: 450px;
+    overflow: hidden;
+}
+
+/* Класс для показа модального окна (добавляй через JS) */
+.modal.active {
+    display: block;
+}
+
+.modal-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+    background: #f8f9fa;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.modal-header .close {
+    cursor: pointer;
+    font-size: 24px;
+    font-weight: bold;
+    color: #999;
+    background: none;
+    border: none;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.modal-header .close:hover {
+    background-color: #e9ecef;
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+    background: #f8f9fa;
+}
+
+
+/* Затемнение фона */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+
+.modal-overlay.active {
+    display: block;
+}
+
+
+.students-loading,
+.students-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+    font-style: italic;
+    font-size: 15px;
+}
+
+.students-error {
+    text-align: center;
+    padding: 20px;
+    background: #ffeaea;
+    color: #d32f2f;
+    border-radius: 6px;
+    border: 1px solid #ffcdd2;
+}
+
+.student-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.student-name {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+}
+
+.student-date {
+    font-size: 12px;
+    color: #999;
+}
+
+/* Футер: удалить слева, остальное справа */
+.modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-footer-right {
+    display: flex;
+    gap: 10px;
+}
+
+/* Карточка ученика кликабельна */
+.student-item {
+    cursor: pointer;
+    transition: background-color 0.15s, box-shadow 0.15s;
+}
+.student-item:hover {
+    background-color: #f0f7ff;
+    box-shadow: 0 2px 8px rgba(39, 159, 245, 0.15);
+}
+
+
+.btn-edit-icon {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: background-color 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+.btn-edit-icon:hover {
+    background: #eaf4ff;
+    color: #279FF5;
+}
+
+
+/* =========================================
+   Адаптивность для мобильных
+   ========================================= */
+@media (max-width: 600px) {
+    .students-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .modal {
+        width: 95%;
+        margin: 10px;
+    }
+    
+    .student-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .student-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

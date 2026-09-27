@@ -48,3 +48,6 @@ db.sqlite3
 
 generate_context.py
 project_context.txt
+
+
+*.docx
