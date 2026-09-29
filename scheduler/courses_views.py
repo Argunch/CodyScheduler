@@ -517,3 +517,60 @@ def load_student_balance(request):
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
+
+@login_required
+@superuser_required_json
+def load_student_attendance(request):
+    """API: история посещаемости ученика (по отмеченным занятиям)."""
+    try:
+        student_id = request.GET.get('student_id')
+        if not student_id:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Не указан student_id'},
+                status=400
+            )
+
+        try:
+            student = Student.objects.get(id=student_id)
+        except Student.DoesNotExist:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Ученик не найден'},
+                status=404
+            )
+
+        # ИЗМЕНЕНО: загружаем Attendance и связанные события
+        from .models import Attendance, BalanceOperation
+
+        attendances = Attendance.objects.filter(student=student).select_related(
+            'event', 'event__course'
+        ).order_by('-event__date', '-event__time')
+
+        # Карта списаний: {event_id: amount}
+        charge_map = {
+            op.event_id: abs(op.amount)
+            for op in BalanceOperation.objects.filter(
+                student=student,
+                operation_type=BalanceOperation.TYPE_CHARGE,
+                event__isnull=False,
+            )
+        }
+
+        records = []
+        for att in attendances:
+            ev = att.event
+            records.append({
+                'id': att.id,
+                'event_id': ev.id,
+                'date': ev.date.strftime('%Y-%m-%d'),
+                'time': ev.time.strftime('%H:%M'),
+                'course_name': ev.course.name if ev.course else '',
+                'event_text': ev.text or '',
+                'was_present': att.was_present,
+                'completion_status': ev.completion_status,
+                'charged': charge_map.get(ev.id, 0),
+            })
+
+        return JsonResponse({'status': 'success', 'records': records})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})

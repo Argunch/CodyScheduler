@@ -159,7 +159,9 @@ class EventManager:
 
             # NEW: обновляем учеников у каждого события серии
             if parsed_data['student_ids'] is not None:
+                old_ids = set(ev.students.values_list('id', flat=True))    # ДОБАВЛЕНО
                 ev.students.set(parsed_data['student_ids'])
+                self._resync_event_students(ev, old_ids)                    # ДОБАВЛЕНО
 
             if parsed_data.get('course_id') is not None:                                 # ДОБАВЛЕНО
                 event.course_id = parsed_data['course_id'] or None                       # ДОБАВЛЕНО
@@ -235,9 +237,13 @@ class EventManager:
         event.duration = parsed_data['duration']
         event.save()
 
-        # NEW: если фронт передал student_ids — заменяем состав
+        # NEW: если фронт передал student_ids
         if parsed_data['student_ids'] is not None:
+            # Запоминаем старый состав до изменения
+            old_ids = set(event.students.values_list('id', flat=True))
             event.students.set(parsed_data['student_ids'])
+            # Полный ре-синк
+            self._resync_event_students(event, old_ids)
 
         if parsed_data.get('course_id') is not None:                                 # ДОБАВЛЕНО
             event.course_id = parsed_data['course_id'] or None                       # ДОБАВЛЕНО
@@ -682,4 +688,57 @@ class EventManager:
 
         # ─── ЗАМЕТКА (не должна сюда попадать) ──────
         raise ValueError('Нельзя отметить заметку — только занятие')
+
+    def _resync_event_students(self, event, old_student_ids):
+        """
+        Полный ре-синк состава учеников события.
+
+        old_student_ids — set ID учеников ДО изменения состава.
+        После вызова:
+        - У удалённых учеников удаляются Attendance и charge.
+        - У текущих учеников Attendance и charge пересоздаются
+          на основе текущего completion_status события.
+        """
+        from .models import Attendance, BalanceOperation
+
+        current_ids = set(event.students.values_list('id', flat=True))
+        removed_ids = old_student_ids - current_ids
+
+        # 1. Удаляем следы у тех, кого убрали
+        if removed_ids:
+            BalanceOperation.objects.filter(
+                event=event,
+                student_id__in=removed_ids,
+                operation_type=BalanceOperation.TYPE_CHARGE,
+            ).delete()
+            # Attendance удалится сигналом m2m_changed, но подстрахуемся
+            Attendance.objects.filter(
+                event=event,
+                student_id__in=removed_ids,
+            ).delete()
+
+        # 2. Синхронизируем всех текущих
+        for student in event.students.all():
+            # Определяем was_present по статусу события
+            was_present = None
+            if event.completion_status == ScheduleEvent.COMPLETION_PASSED:
+                was_present = True
+            elif event.completion_status == ScheduleEvent.COMPLETION_NOT_CONDUCTED:
+                was_present = False
+
+            # Если событие отмечено — обновляем Attendance и charge
+            if event.completion_status:
+                Attendance.objects.update_or_create(
+                    event=event,
+                    student=student,
+                    defaults={'was_present': was_present if was_present is not None else False},
+                )
+                self._sync_charge_for_event(event, student, was_present=was_present)
+            else:
+                # Неотмеченное — просто удаляем старый charge, если был
+                BalanceOperation.objects.filter(
+                    event=event,
+                    student=student,
+                    operation_type=BalanceOperation.TYPE_CHARGE,
+                ).delete()
 

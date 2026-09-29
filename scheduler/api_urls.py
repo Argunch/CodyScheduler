@@ -40,5 +40,7 @@ urlpatterns = [
     path('delete-payment/', courses_views.delete_payment, name='delete_payment'),
 
     # баланс
-    path('load-student-balance/', courses_views.load_student_balance, name='load_student_balance')
+    path('load-student-balance/', courses_views.load_student_balance, name='load_student_balance'),
+
+    path('load-student-attendance/', courses_views.load_student_attendance, name='load_student_attendance'),
 ]

@@ -10,6 +10,7 @@ import { CoursePricesService } from './services/course-prices.js';
 import { PaymentModal } from './components/payment-modal.js';
 import { PaymentsService } from './services/payments.js';
 import { BalanceService } from './services/balance.js';
+import { AttendanceHistoryService } from './services/attendance-history.js';
 
 let eventManager = null;
 let userManager = null;
@@ -179,6 +180,11 @@ async function initStudentDetailPage() {
 
         // Баланс ученика
         const balanceService = new BalanceService(studentId);
+
+        // История посещаемости
+        const attendanceService = new AttendanceHistoryService(studentId);
+        await attendanceService.loadAndRender();
+
 
         // Модалка стоимости курса
         const coursePriceModal = new CoursePriceModal();
