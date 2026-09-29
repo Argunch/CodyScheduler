@@ -144,7 +144,8 @@ class EventManager:
         # Обновляем все события этой серии
         events_to_update = ScheduleEvent.objects.filter(
             user=self.target_user,
-            series_id=series_id
+            series_id=series_id,
+            date__gte=event.date,   # ← только текущее и будущие
         )
 
         for ev in events_to_update:
@@ -410,35 +411,98 @@ class EventManager:
             'completion_status': data.get('completion_status'),    # ДОБАВЛЕНО
         }
 
-    def _sync_charge_for_event(self, event, student):
+    # def _sync_charge_for_event(self, event, student):
+    #     """
+    #     Синхронизирует списание (BalanceOperation type=charge) для события и ученика.
+    #     - Если статус события = passed и есть курс с ценой — создаёт или обновляет списание.
+    #     - Если статус не passed — удаляет существующее списание.
+    #     """
+    #     from .models import StudentCoursePrice, BalanceOperation
+
+    #     # Удаляем предыдущее списание по этому событию и ученику (если было)
+    #     BalanceOperation.objects.filter(
+    #         event=event,
+    #         student=student,
+    #         operation_type=BalanceOperation.TYPE_CHARGE,
+    #     ).delete()
+
+    #     # ИЗМЕНЕНО: списываем при passed или missed_student
+    #     chargeable = (
+    #         event.completion_status == ScheduleEvent.COMPLETION_PASSED
+    #         or event.completion_status == ScheduleEvent.COMPLETION_MISSED_STUDENT
+    #     )
+    #     if not chargeable:
+    #         return
+
+    #     # Нет курса — списывать нечего
+    #     if not event.course_id:
+    #         print(f'[charge] У события {event.id} нет курса — списание не создано')
+    #         return
+
+    #     # Нет цены для пары (ученик, курс) — списывать нечего
+    #     price_obj = StudentCoursePrice.objects.filter(
+    #         student=student,
+    #         course_id=event.course_id,
+    #     ).first()
+    #     if not price_obj or price_obj.price_per_lesson <= 0:
+    #         print(f'[charge] У ученика {student.id} нет цены на курс {event.course_id} — списание не создано')
+    #         return
+
+    #     # Создаём списание
+    #     BalanceOperation.objects.create(
+    #         student=student,
+    #         course_id=event.course_id,
+    #         amount=-price_obj.price_per_lesson,       # отрицательное!
+    #         operation_type=BalanceOperation.TYPE_CHARGE,
+    #         operation_date=event.date,
+    #         event=event,
+    #         created_by=self.request_user,
+    #     )
+    #     print(f'[charge] Списано {price_obj.price_per_lesson}₽ с {student} за событие {event.id}')
+    
+
+    def _sync_charge_for_event(self, event, student, was_present=None):
         """
         Синхронизирует списание (BalanceOperation type=charge) для события и ученика.
-        - Если статус события = passed и есть курс с ценой — создаёт или обновляет списание.
-        - Если статус не passed — удаляет существующее списание.
+
+        Правила:
+        - Индивидуальное: списываем при passed или missed_student.
+        - Групповое: списываем, если ученик был ИЛИ у него есть остаток оплаченных занятий.
+          (не списываем только если ученик отсутствовал И на балансе пусто)
         """
         from .models import StudentCoursePrice, BalanceOperation
 
-        # Удаляем предыдущее списание по этому событию и ученику (если было)
+        # 1. Удаляем предыдущее списание по этому событию и ученику
         BalanceOperation.objects.filter(
             event=event,
             student=student,
             operation_type=BalanceOperation.TYPE_CHARGE,
         ).delete()
 
-        # ИЗМЕНЕНО: списываем при passed или missed_student
-        chargeable = (
-            event.completion_status == ScheduleEvent.COMPLETION_PASSED
-            or event.completion_status == ScheduleEvent.COMPLETION_MISSED_STUDENT
-        )
-        if not chargeable:
+        # 2. Определяем, надо ли списывать
+        should_charge = False
+
+        if event.status == ScheduleEvent.STATUS_INDIVIDUAL:
+            should_charge = event.completion_status in (
+                ScheduleEvent.COMPLETION_PASSED,
+                ScheduleEvent.COMPLETION_MISSED_STUDENT,
+            )
+        elif event.status == ScheduleEvent.STATUS_GROUP:
+            # ИЗМЕНЕНО: новая логика для групповых
+            if was_present:
+                should_charge = True
+            else:
+                remaining = student.get_remaining_lessons(event.course)
+                should_charge = (remaining is not None and remaining > 0)
+
+        if not should_charge:
             return
 
-        # Нет курса — списывать нечего
+        # 3. Проверяем курс и цену
         if not event.course_id:
             print(f'[charge] У события {event.id} нет курса — списание не создано')
             return
 
-        # Нет цены для пары (ученик, курс) — списывать нечего
         price_obj = StudentCoursePrice.objects.filter(
             student=student,
             course_id=event.course_id,
@@ -447,18 +511,18 @@ class EventManager:
             print(f'[charge] У ученика {student.id} нет цены на курс {event.course_id} — списание не создано')
             return
 
-        # Создаём списание
+        # 4. Создаём списание
         BalanceOperation.objects.create(
             student=student,
             course_id=event.course_id,
-            amount=-price_obj.price_per_lesson,       # отрицательное!
+            amount=-price_obj.price_per_lesson,
             operation_type=BalanceOperation.TYPE_CHARGE,
             operation_date=event.date,
             event=event,
             created_by=self.request_user,
         )
         print(f'[charge] Списано {price_obj.price_per_lesson}₽ с {student} за событие {event.id}')
-    
+
     def _check_permissions(self, event):
         """Проверка прав доступа"""
         if not self.request_user.is_superuser and event.created_by != self.request_user:
@@ -553,7 +617,7 @@ class EventManager:
                     defaults={'was_present': bool(att['was_present'])},
                 )
 
-            # Автоматически вычисляем статус: хотя бы один был → passed
+            # Автоматически вычисляем статус
             was_any = any(bool(a['was_present']) for a in attendances)
             event.completion_status = (
                 ScheduleEvent.COMPLETION_PASSED if was_any
@@ -562,9 +626,14 @@ class EventManager:
             event.completed_at = now
             event.save(update_fields=['completion_status', 'completed_at'])
 
-            # ДОБАВЛЕНО: синхронизируем списания для всех учеников группы
+            # ИЗМЕНЕНО: формируем карту «кто был»
+            attendance_map = {int(a['student_id']): bool(a['was_present']) for a in attendances}
+
+            # ИЗМЕНЕНО: передаём was_present для каждого ученика
             for stu in event.students.all():
-                self._sync_charge_for_event(event, stu)
+                was_present = attendance_map.get(stu.id, False)
+                self._sync_charge_for_event(event, stu, was_present=was_present) 
+
 
             return {
                 'id': event.id,

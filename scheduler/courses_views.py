@@ -173,7 +173,7 @@ def load_course_prices(request):
 
         # ДОБАВЛЕНО: проверяем, что ученик существует и принадлежит текущему пользователю
         try:
-            student = Student.objects.get(id=student_id, created_by=request.user)
+            student = Student.objects.get(id=student_id)
         except Student.DoesNotExist:
             return JsonResponse(
                 {'status': 'error', 'message': 'Ученик не найден'},
@@ -231,7 +231,7 @@ def save_course_price(request):
 
         # ДОБАВЛЕНО: проверяем ученика и курс
         try:
-            student = Student.objects.get(id=student_id, created_by=request.user)
+            student = Student.objects.get(id=student_id)
         except Student.DoesNotExist:
             return JsonResponse(
                 {'status': 'error', 'message': 'Ученик не найден'},
@@ -358,7 +358,7 @@ def save_payment(request):
 
         # Ученик
         try:
-            student = Student.objects.get(id=student_id, created_by=request.user)
+            student = Student.objects.get(id=student_id)
         except Student.DoesNotExist:
             return JsonResponse(
                 {'status': 'error', 'message': 'Ученик не найден'},
@@ -442,7 +442,6 @@ def delete_payment(request):
             op = BalanceOperation.objects.get(
                 id=payment_id,
                 operation_type=BalanceOperation.TYPE_PAYMENT,
-                student__created_by=request.user
             )
         except BalanceOperation.DoesNotExist:
             return JsonResponse(
@@ -478,7 +477,6 @@ def delete_course_price(request):
         try:
             price = StudentCoursePrice.objects.get(
                 id=price_id,
-                student__created_by=request.user
             )
         except StudentCoursePrice.DoesNotExist:
             return JsonResponse(
@@ -507,7 +505,7 @@ def load_student_balance(request):
             )
 
         try:
-            student = Student.objects.get(id=student_id, created_by=request.user)
+            student = Student.objects.get(id=student_id)
         except Student.DoesNotExist:
             return JsonResponse(
                 {'status': 'error', 'message': 'Ученик не найден'},

@@ -83,7 +83,7 @@ def save_student(request):
 def load_students(request):
     """API для загрузки списка учеников"""
     try:
-        students = Student.objects.filter(created_by=request.user)
+        students = Student.objects.all()
         students_list = [
             {
                 'id': student.id,
@@ -126,7 +126,7 @@ def update_student(request):
                 return JsonResponse({'status': 'error', 'message': 'Имя и фамилия обязательны'})
 
             # Ищем ученика, принадлежащего текущему пользователю
-            student = Student.objects.get(id=student_id, created_by=request.user)
+            student = Student.objects.get(id=student_id)
             student.first_name = first_name
             student.last_name = last_name
             student.save()
@@ -162,7 +162,7 @@ def delete_student(request):
                     'message': 'ID ученика не указан'
                 })
 
-            student = Student.objects.get(id=student_id, created_by=request.user)
+            student = Student.objects.get(id=student_id)
             student.delete()
 
             return JsonResponse({
@@ -191,6 +191,5 @@ def student_detail(request, student_id):
     student = get_object_or_404(
         Student,
         id=student_id,
-        created_by=request.user
     )
     return render(request, 'student_detail.html', {'student': student})
