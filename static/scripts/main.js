@@ -11,6 +11,8 @@ import { PaymentModal } from './components/payment-modal.js';
 import { PaymentsService } from './services/payments.js';
 import { BalanceService } from './services/balance.js';
 import { AttendanceHistoryService } from './services/attendance-history.js';
+import { StudentExtraModal } from './components/student-extra-modal.js';
+import { AdminUnmarkedModal } from './components/admin-unmarked-modal.js';
 
 let eventManager = null;
 let userManager = null;
@@ -136,7 +138,22 @@ async function initSchedulePage() {
 
         // Проверяем непроверенные занятия и показываем модалку отметки
         const completionModal = new CompletionModal();
-        await completionModal.checkAndShow();
+
+        // ДОБАВЛЕНО: показываем модалку только если смотрим своё расписание
+        const userSelect = document.getElementById('user-select');
+        const viewingOther = userSelect && userSelect.value !== 'self';
+        if (!viewingOther) {
+            await completionModal.checkAndShow();
+
+        } else {
+            console.log('👀 Просмотр чужого расписания — модалка отметки не открывается');
+        }
+
+        // Колокольчик для суперюзера
+        if (document.getElementById('user-select')) {
+            const adminModal = new AdminUnmarkedModal();
+            await adminModal.checkAndShowBell();
+        }
 
         setTimeout(() => {
             if (eventManager) {
@@ -176,6 +193,13 @@ async function initStudentDetailPage() {
         const editBtn = document.getElementById('student-detail-edit');
         if (editBtn) {
             editBtn.addEventListener('click', () => controller.openEditModal(studentId));
+        }
+
+        // Доп. информация
+        const extraModal = new StudentExtraModal(studentId);
+        const extraBtn = document.getElementById('student-detail-extra');
+        if (extraBtn) {
+            extraBtn.addEventListener('click', () => extraModal.open());
         }
 
         // Баланс ученика

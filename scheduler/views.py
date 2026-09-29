@@ -419,3 +419,67 @@ def mark_event(request):
             status=500
         )
 
+
+@login_required
+def load_all_unmarked_events(request):
+    """API: неотмеченные занятия всех преподавателей (только суперюзер)."""
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Доступ запрещён'},
+            status=403
+        )
+
+    try:
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.localtime()
+        week_ago = now - timedelta(days=7)
+
+        qs = ScheduleEvent.objects.filter(
+            status__in=[
+                ScheduleEvent.STATUS_INDIVIDUAL,
+                ScheduleEvent.STATUS_GROUP,
+            ],
+            completion_status='',
+            date__gte=week_ago.date(),
+        ).select_related(
+            'user', 'course'
+        ).prefetch_related(
+            'students', 'attendances'
+        ).order_by('date', 'time')
+
+        result = []
+        for event in qs:
+            if not event.is_finished(now=now):
+                continue
+
+            existing = {a.student_id: a.was_present for a in event.attendances.all()}
+
+            result.append({
+                'id': event.id,
+                'teacher_id': event.user.id,
+                'teacher_name': event.user.username,
+                'date': event.date.strftime('%Y-%m-%d'),
+                'time': event.time.strftime('%H:%M'),
+                'text': event.text or 'Без названия',
+                'course_id': event.course_id,
+                'course_name': event.course.name if event.course else '',
+                'status': event.status,
+                'duration': float(event.duration),
+                'students': [
+                    {
+                        'id': s.id,
+                        'full_name': str(s),
+                        'remaining_lessons': s.get_remaining_lessons(event.course),
+                        'was_present': existing.get(s.id),
+                    }
+                    for s in event.students.all()
+                ],
+            })
+
+        return JsonResponse({'status': 'success', 'events': result})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+

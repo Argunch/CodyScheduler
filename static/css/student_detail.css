@@ -372,3 +372,10 @@
     font-size: 14px;
     padding: 10px 0;
 }
+
+/* ИЗМЕНЕНО: textarea в стиле form-input */
+textarea.form-input {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}

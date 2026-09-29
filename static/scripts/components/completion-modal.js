@@ -10,12 +10,32 @@ export class CompletionModal {
         this.events = [];
 
         // Блокируем Esc, пока модалка открыта
+        // ДОБАВЛЕНО: определяем, суперюзер ли текущий пользователь
+        const meta = document.querySelector('meta[name="is-superuser"]');
+        this.isSuperuser = meta && meta.getAttribute('content') === 'true';
+
+        // ИЗМЕНЕНО: Esc закрывает модалку для суперюзера, блокируется для остальных
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.isOpen()) {
-                e.preventDefault();
-                e.stopPropagation();
+                if (this.isSuperuser) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.close();
+                } else {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
             }
-        }, true);   // capture=true — перехватываем раньше других обработчиков
+        }, true);
+
+        // ДОБАВЛЕНО: клик по фону закрывает модалку для суперюзера
+        if (this.modal) {
+            this.modal.addEventListener('click', (e) => {
+                if (this.isSuperuser && e.target === this.modal) {
+                    this.close();
+                }
+            });
+        }
     }
 
     isOpen() {
@@ -183,6 +203,9 @@ export class CompletionModal {
             if (data.status === 'success') {
                 card.remove();
                 this.events = this.events.filter(e => e.id !== eventId);
+
+                // ДОБАВЛЕНО: уведомляем другие компоненты, что список изменился
+                document.dispatchEvent(new CustomEvent('unmarkedEventsChanged'));
 
                 if (this.events.length === 0) {
                     this.close();

@@ -43,4 +43,9 @@ urlpatterns = [
     path('load-student-balance/', courses_views.load_student_balance, name='load_student_balance'),
 
     path('load-student-attendance/', courses_views.load_student_attendance, name='load_student_attendance'),
+
+    path('load-student-extra/', courses_views.load_student_extra, name='load_student_extra'),
+    path('save-student-extra/', courses_views.save_student_extra, name='save_student_extra'),
+
+    path('load-all-unmarked-events/', views.load_all_unmarked_events, name='load_all_unmarked_events'),
 ]

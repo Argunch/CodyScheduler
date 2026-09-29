@@ -17,6 +17,11 @@
     width: 520px;            /* ← ДОБАВЛЕНО */
     max-width: 90vw;         /* ← ДОБАВЛЕНО: чтобы не вылезала на телефоне */
     box-sizing: border-box;  /* ← ДОБАВЛЕНО */
+
+    max-width: 90vw;              /* ДОБАВЛЕНО: не вылезать по ширине */
+    max-height: 90vh;             /* ДОБАВЛЕНО: не вылезать по высоте */
+    overflow-y: auto;             /* ДОБАВЛЕНО: скролл внутри модалки */
+    box-sizing: border-box;       /* ДОБАВЛЕНО: padding входит в width */
 }
 
 #modal-overlay {

@@ -46,6 +46,23 @@ class Student(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    birth_date = models.DateField(
+        null=True, blank=True,
+        verbose_name='Дата рождения'
+    )
+    parent_name = models.CharField(
+        max_length=200, blank=True,
+        verbose_name='ФИО родителя'
+    )
+    parent_phone = models.CharField(
+        max_length=50, blank=True,
+        verbose_name='Телефон родителя'
+    )
+    extra_info = models.TextField(
+        blank=True,
+        verbose_name='Дополнительная информация'
+    )
+
     def get_remaining_lessons(self, course):
         """
         Возвращает количество оставшихся оплаченных занятий по курсу.

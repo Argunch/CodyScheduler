@@ -95,6 +95,8 @@ class EventManager:
             'status': 'success',
             'created': False,
             'id': event.id,
+            'course_id': event.course_id,                                    # ДОБАВЛЕНО
+            'course_name': event.course.name if event.course else '',         # ДОБАВЛЕНО
             'student_ids': list(event.students.values_list('id', flat=True)),   # NEW
             'students': [                                                       # NEW
                 {'id': s.id, 'full_name': str(s)} for s in event.students.all()
@@ -283,6 +285,8 @@ class EventManager:
                 'status': 'success',
                 'created': True,
                 'id': event.id,
+                'course_id': event.course_id,                                    # ДОБАВЛЕНО
+                'course_name': event.course.name if event.course else '',         # ДОБАВЛЕНО
                 'student_ids': list(event.students.values_list('id', flat=True)),
                 'students': [
                     {'id': s.id, 'full_name': str(s)} for s in event.students.all()
@@ -295,6 +299,8 @@ class EventManager:
                 'created': True,
                 'id': event.id,
                 'series_id': str(series_id),
+                'course_id': event.course_id,                                    # ДОБАВЛЕНО
+                'course_name': event.course.name if event.course else '',         # ДОБАВЛЕНО
                 'student_ids': list(event.students.values_list('id', flat=True)),
                 'students': [
                     {'id': s.id, 'full_name': str(s)} for s in event.students.all()
@@ -597,7 +603,11 @@ class EventManager:
         from .models import Attendance
 
         try:
-            event = ScheduleEvent.objects.get(id=event_id, user=self.target_user)
+            if self.request_user.is_superuser:
+                # Суперюзер может отмечать любое событие (включая чужие расписания)
+                event = ScheduleEvent.objects.get(id=event_id)
+            else:
+                event = ScheduleEvent.objects.get(id=event_id, user=self.target_user)
         except ScheduleEvent.DoesNotExist:
             raise ScheduleEvent.DoesNotExist('Событие не найдено')
 

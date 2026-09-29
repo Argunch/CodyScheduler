@@ -28,6 +28,10 @@ export class EventModal {
 
         this.currentEventData = null;    // ДОБАВЛЕНО: полные данные открытого события
 
+        // ДОБАВЛЕНО: определяем, суперюзер ли текущий пользователь
+        const meta = document.querySelector('meta[name="is-superuser"]');
+        this.isSuperuser = meta && meta.getAttribute('content') === 'true';
+
         this.elements = {
             modal: document.getElementById('event-modal'),
             overlay: document.getElementById('modal-overlay'),
@@ -475,6 +479,11 @@ export class EventModal {
         // выбор курса
         await this.loadCoursesForEvent();    // ДОБАВЛЕНО
         this.updateCourseVisibility();       // ДОБАВЛЕНО
+
+        // ДОБАВЛЕНО: прячем кнопку «Добавить ученика» для не-суперюзеров
+        if (this.elements.addStudentsBtn) {
+            this.elements.addStudentsBtn.style.display = this.isSuperuser ? '' : 'none';
+        }
 
         this.showModal();
         this.elements.textInput.focus();

@@ -44,6 +44,9 @@
                 </select>
                 <span id="current-user-info"></span>
             </div>
+            <button id="admin-notifications-btn" class="admin-notifications-btn" type="button" title="Неотмеченные занятия" style="display: none;">
+                🔔<span id="admin-notifications-count" class="admin-notifications-count"></span>
+            </button>
             {% endif %}
 
             <!-- Кнопка переключения режима глаза -->
@@ -283,6 +286,20 @@
         </div>
     </div>
     <div id="attendance-overlay" class="modal-common-overlay"></div>
+
+    <!-- Модалка: все неотмеченные занятия (для суперюзера) -->
+    <div id="admin-unmarked-modal" class="admin-unmarked-modal">
+        <div class="admin-unmarked-window">
+            <div class="admin-unmarked-header">
+                <h3>Неотмеченные занятия</h3>
+                <span class="close" id="admin-unmarked-close">&times;</span>
+            </div>
+            <p class="admin-unmarked-subtitle">Все преподаватели · за последние 7 дней</p>
+            <div id="admin-unmarked-list" class="admin-unmarked-list">
+                <!-- Заполняется через JS -->
+            </div>
+        </div>
+    </div>
 
 
     {% include 'partials/_course_modals.html' %}

@@ -574,3 +574,85 @@ def load_student_attendance(request):
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
+
+
+@login_required
+@superuser_required_json
+def load_student_extra(request):
+    """API: получить дополнительную информацию об ученике."""
+    try:
+        student_id = request.GET.get('student_id')
+        if not student_id:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Не указан student_id'},
+                status=400
+            )
+        try:
+            student = Student.objects.get(id=student_id)
+        except Student.DoesNotExist:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Ученик не найден'},
+                status=404
+            )
+
+        return JsonResponse({
+            'status': 'success',
+            'birth_date': student.birth_date.strftime('%Y-%m-%d') if student.birth_date else '',
+            'parent_name': student.parent_name or '',
+            'parent_phone': student.parent_phone or '',
+            'extra_info': student.extra_info or '',
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+
+
+@csrf_exempt
+@require_POST
+@login_required
+@superuser_required_json
+def save_student_extra(request):
+    """API: сохранить дополнительную информацию об ученике."""
+    try:
+        data = json.loads(request.body)
+        student_id = data.get('student_id')
+        if not student_id:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Не указан student_id'},
+                status=400
+            )
+        try:
+            student = Student.objects.get(id=student_id)
+        except Student.DoesNotExist:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Ученик не найден'},
+                status=404
+            )
+
+        # Дата рождения — пустая строка => None
+        birth_date_raw = (data.get('birth_date') or '').strip()
+        if birth_date_raw:
+            from datetime import datetime
+            try:
+                student.birth_date = datetime.strptime(birth_date_raw, '%Y-%m-%d').date()
+            except ValueError:
+                return JsonResponse(
+                    {'status': 'error', 'message': 'Неверный формат даты'},
+                    status=400
+                )
+        else:
+            student.birth_date = None
+
+        student.parent_name = (data.get('parent_name') or '').strip()[:200]
+        student.parent_phone = (data.get('parent_phone') or '').strip()[:50]
+        student.extra_info = data.get('extra_info') or ''
+
+        student.save(update_fields=['birth_date', 'parent_name', 'parent_phone', 'extra_info'])
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Информация сохранена',
+        })
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Неверный формат JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})

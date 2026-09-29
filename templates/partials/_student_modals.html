@@ -54,10 +54,7 @@
         </div>
     </div>
 </div>
-<!-- Скрытая форма для CSRF-токена (нужна для POST-запросов) -->
-<form id="csrf-holder" style="display: none;">
-    {% csrf_token %}
-</form>
+
 <!-- Затемнение фона -->
 <div id="modal-overlay" class="modal-overlay"></div>
 
@@ -125,3 +122,42 @@
     </div>
 </div>
 <div id="payment-overlay" class="modal-overlay"></div>
+
+
+<!-- Модалка дополнительной информации -->
+<div id="student-extra-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Доп. информация</h3>
+            <span class="close" id="student-extra-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="extra-birth-date">Дата рождения ребёнка:</label>
+                <input type="date" id="extra-birth-date" class="form-input">
+            </div>
+            <div class="form-group">
+                <label for="extra-parent-name">ФИО родителя:</label>
+                <input type="text" id="extra-parent-name" class="form-input" maxlength="200" placeholder="Иванова Мария Петровна">
+            </div>
+            <div class="form-group">
+                <label for="extra-parent-phone">Телефон родителя:</label>
+                <input type="tel" id="extra-parent-phone" class="form-input" maxlength="50" placeholder="+7 999 123-45-67">
+            </div>
+            <div class="form-group">
+                <label for="extra-info">Дополнительная информация:</label>
+                <textarea id="extra-info" class="form-input" rows="5" placeholder="Любая информация о ребёнке..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="student-extra-cancel" class="btn btn-secondary">Отмена</button>
+            <button type="button" id="student-extra-save" class="btn btn-primary">Сохранить</button>
+        </div>
+    </div>
+</div>
+<div id="student-extra-overlay" class="modal-overlay"></div>
+
+<!-- Скрытая форма для CSRF-токена (нужна для POST-запросов) -->
+<form id="csrf-holder" style="display: none;">
+    {% csrf_token %}
+</form>
