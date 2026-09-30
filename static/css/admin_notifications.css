@@ -153,3 +153,167 @@
 }
 
 /* Карточка — переиспользуем стили completion-card из completion_modal.css */
+
+
+
+/* Жёлтая кнопка (предупреждение о балансе) */
+.admin-balance-btn {
+    border-color: #f0c040;
+    background: #fff7e0;
+}
+.admin-balance-btn:hover {
+    background: #ffeaa6;
+    border-color: #e0a020;
+}
+
+.admin-balance-count {
+    background: #e0a020 !important;
+}
+
+/* Секции внутри модалки баланса */
+.admin-balance-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-balance-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid #eee;
+}
+
+.admin-balance-section-title.negative-title {
+    color: #d32f2f;
+    border-bottom-color: #ffcdd2;
+}
+
+.admin-balance-section-title.zero-title {
+    color: #8a6d00;
+    border-bottom-color: #ffeaa6;
+}
+
+/* Строка ученика */
+.admin-balance-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    font-size: 14px;
+    text-decoration: none;
+    color: #333;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.admin-balance-row:hover {
+    background: #f0f7ff;
+    border-color: #cfe5ff;
+}
+
+.admin-balance-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.admin-balance-amount {
+    font-weight: 600;
+    font-size: 15px;
+    flex-shrink: 0;
+    margin-left: 10px;
+}
+
+.admin-balance-amount.negative {
+    color: #d32f2f;
+}
+
+.admin-balance-amount.zero {
+    color: #8a6d00;
+}
+
+
+/* Раздел компенсаций */
+.admin-compensation-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.admin-compensation-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid #eee;
+    color: #279FF5;
+    border-bottom-color: #cfe5ff;
+}
+
+/* Строка компенсации */
+.admin-compensation-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.admin-compensation-row:hover {
+    background: #f0f7ff;
+    border-color: #cfe5ff;
+}
+
+.admin-compensation-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #279FF5;
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.admin-compensation-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.admin-compensation-name {
+    color: #333;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-compensation-meta {
+    color: #999;
+    font-size: 12px;
+}
+
+/* Кнопка "Отметить" внизу */
+.admin-compensation-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+}

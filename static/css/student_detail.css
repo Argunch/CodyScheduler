@@ -379,3 +379,9 @@ textarea.form-input {
     min-height: 80px;
     font-family: inherit;
 }
+
+.balance-course-until {
+    color: #279FF5;
+    font-size: 12px;
+    margin-top: 2px;
+}

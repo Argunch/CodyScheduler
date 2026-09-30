@@ -47,16 +47,27 @@ export class BalanceService {
         this.byCourseEl.innerHTML = data.by_course.map(c => {
             const sign = c.balance < 0 ? 'negative' : (c.balance === 0 ? 'zero' : 'positive');
             const lessonsText = this.formatLessons(c);
+            // НОВОЕ: строка "До ..." если есть дата
+            const untilText = c.paid_until_date
+                ? `<span class="balance-course-until">До ${this.formatDate(c.paid_until_date)}</span>`
+                : '';
+
             return `
                 <div class="balance-course-row">
                     <div class="balance-course-info">
                         <span class="balance-course-name">${this.escapeHtml(c.course_name)}</span>
                         <span class="balance-course-lessons">${lessonsText}</span>
+                        ${untilText}
                     </div>
                     <span class="balance-course-amount ${sign}">${c.balance} ₽</span>
                 </div>
             `;
         }).join('');
+    }
+
+    formatDate(iso) {
+        const [y, m, d] = iso.split('-');
+        return `${d}.${m}.${y}`;
     }
 
     formatLessons(c) {

@@ -270,6 +270,9 @@ def save_course_price(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
 
+    
+    
+
 @login_required
 @superuser_required_json
 def load_payments(request):

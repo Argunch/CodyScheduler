@@ -13,6 +13,7 @@ import { BalanceService } from './services/balance.js';
 import { AttendanceHistoryService } from './services/attendance-history.js';
 import { StudentExtraModal } from './components/student-extra-modal.js';
 import { AdminUnmarkedModal } from './components/admin-unmarked-modal.js';
+import { AdminBalanceModal } from './components/admin-balance-modal.js';
 
 let eventManager = null;
 let userManager = null;
@@ -153,6 +154,13 @@ async function initSchedulePage() {
         if (document.getElementById('user-select')) {
             const adminModal = new AdminUnmarkedModal();
             await adminModal.checkAndShowBell();
+        }
+
+
+        // Кнопка баланса (тоже только для суперюзера)
+        if (document.getElementById('user-select')) {
+            const adminBalanceModal = new AdminBalanceModal();
+            await adminBalanceModal.checkAndShowBtn();
         }
 
         setTimeout(() => {

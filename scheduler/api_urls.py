@@ -48,4 +48,8 @@ urlpatterns = [
     path('save-student-extra/', courses_views.save_student_extra, name='save_student_extra'),
 
     path('load-all-unmarked-events/', views.load_all_unmarked_events, name='load_all_unmarked_events'),
+
+    path('load-problem-students/', views.load_problem_students, name='load_problem_students'),
+
+    path('mark-compensated/', views.mark_compensated, name='mark_compensated'),
 ]

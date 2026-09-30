@@ -47,6 +47,10 @@
             <button id="admin-notifications-btn" class="admin-notifications-btn" type="button" title="Неотмеченные занятия" style="display: none;">
                 🔔<span id="admin-notifications-count" class="admin-notifications-count"></span>
             </button>
+
+            <button id="admin-balance-btn" class="admin-notifications-btn admin-balance-btn" type="button" title="Проблемы с балансом" style="display: none;">
+                ❗<span id="admin-balance-count" class="admin-notifications-count admin-balance-count"></span>
+            </button>
             {% endif %}
 
             <!-- Кнопка переключения режима глаза -->
@@ -296,6 +300,21 @@
             </div>
             <p class="admin-unmarked-subtitle">Все преподаватели · за последние 7 дней</p>
             <div id="admin-unmarked-list" class="admin-unmarked-list">
+                <!-- Заполняется через JS -->
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Модалка: ученики с нулевым или отрицательным балансом (для суперюзера) -->
+    <div id="admin-balance-modal" class="admin-unmarked-modal">
+        <div class="admin-unmarked-window">
+            <div class="admin-unmarked-header">
+                <h3>Проблемы с балансом</h3>
+                <span class="close" id="admin-balance-close">&times;</span>
+            </div>
+            <p class="admin-unmarked-subtitle">Ученики с нулевым или отрицательным балансом</p>
+            <div id="admin-balance-list" class="admin-unmarked-list">
                 <!-- Заполняется через JS -->
             </div>
         </div>

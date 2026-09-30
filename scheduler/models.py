@@ -167,6 +167,22 @@ class Student(models.Model):
             else:
                 remaining_lessons = None
 
+
+            # НОВОЕ: до какого числа хватит оплаты
+            paid_until_date = None
+            if remaining_lessons is not None and remaining_lessons > 0:
+                from django.utils import timezone
+                from .models import ScheduleEvent
+                future_lessons = list(
+                    ScheduleEvent.objects.filter(
+                        students=self,
+                        course=course,
+                        date__gte=timezone.localdate(),
+                    ).order_by('date', 'time')[:remaining_lessons]
+                )
+                if future_lessons:
+                    paid_until_date = future_lessons[-1].date
+
             by_course.append({
                 'course_id': course.id,
                 'course_name': course.name,
@@ -175,6 +191,7 @@ class Student(models.Model):
                 'paid_lessons': paid_lessons,
                 'conducted_lessons': conducted_lessons,
                 'remaining_lessons': remaining_lessons,
+                'paid_until_date': paid_until_date.strftime('%Y-%m-%d') if paid_until_date else None,   # НОВОЕ
             })
 
         return {
@@ -360,6 +377,12 @@ class Attendance(models.Model):
     marked_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name='Когда отмечено'
+    )
+
+    compensated = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name='Компенсация предоставлена'
     )
 
     class Meta:

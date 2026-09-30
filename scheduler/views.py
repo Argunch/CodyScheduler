@@ -6,7 +6,7 @@ from django.views.decorators.http import require_POST
 
 from django.http import JsonResponse
 
-from .models import ScheduleEvent
+from .models import ScheduleEvent, Attendance
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm
@@ -480,6 +480,106 @@ def load_all_unmarked_events(request):
 
         return JsonResponse({'status': 'success', 'events': result})
 
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+
+
+@login_required
+def load_problem_students(request):
+    """
+    API: ученики с нулевым или отрицательным балансом.
+    Показывает только тех, у кого есть хоть одна операция
+    (иначе все ученики без платежей попадут в «нулевые»).
+    Только для суперюзера.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'Доступ запрещён'}, status=403)
+
+    try:
+        from django.db.models import Sum
+        from .models import BalanceOperation, Student
+
+        # Ученики с хотя бы одной операцией
+        # students_with_ops = Student.objects.filter(
+        #     balance_operations__isnull=False
+        # ).distinct()
+
+        # Все ученики с нулём
+        students_with_ops = Student.objects.all()
+
+
+        zero = []
+        negative = []
+
+        for s in students_with_ops:
+            total = BalanceOperation.objects.filter(student=s).aggregate(
+                s=Sum('amount')
+            )['s'] or 0
+
+            if total == 0:
+                zero.append({'id': s.id, 'full_name': str(s), 'balance': 0})
+            elif total < 0:
+                negative.append({'id': s.id, 'full_name': str(s), 'balance': total})
+
+        # Сортировка
+        negative.sort(key=lambda x: x['balance'])              # самые большие долги сверху
+        zero.sort(key=lambda x: x['full_name'].lower())
+
+
+        # ─── Компенсации ────────────────────────────────
+        compensations_qs = Attendance.objects.filter(
+            was_present=False,
+            compensated=False,
+            event__completion_status=ScheduleEvent.COMPLETION_MISSED_STUDENT,
+        ).select_related('student', 'event', 'event__course').order_by('-event__date', '-event__time')
+
+        compensations = [
+            {
+                'attendance_id': a.id,
+                'student_id': a.student.id,
+                'student_name': str(a.student),
+                'date': a.event.date.strftime('%Y-%m-%d'),
+                'time': a.event.time.strftime('%H:%M'),
+                'course_name': a.event.course.name if a.event.course else '',
+            }
+            for a in compensations_qs
+        ]
+
+
+        return JsonResponse({
+            'status': 'success',
+            'zero': zero,
+            'negative': negative,
+            'compensations': compensations,
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+
+@csrf_exempt
+@require_POST
+@login_required
+def mark_compensated(request):
+    """API: отметить компенсации как предоставленные. Только для суперюзера."""
+    if not request.user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'Доступ запрещён'}, status=403)
+
+    try:
+        from .models import Attendance
+        data = json.loads(request.body)
+        ids = data.get('ids', [])
+
+        if not ids:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Не переданы id компенсаций'},
+                status=400
+            )
+
+        updated = Attendance.objects.filter(id__in=ids).update(compensated=True)
+        return JsonResponse({'status': 'success', 'updated': updated})
+
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Неверный формат JSON'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
 
