@@ -108,7 +108,7 @@ export class AdminBalanceModal {
         }
 
         // ДОБАВЛЕНО: раздел компенсаций
-        if (this.compensations.length > 0) {
+         if (this.compensations.length > 0) {
             parts.push(`
                 <div class="admin-compensation-section">
                     <div class="admin-compensation-title">
@@ -117,16 +117,12 @@ export class AdminBalanceModal {
                     <div class="admin-compensation-list">
                         ${this.compensations.map(c => this.renderCompensationRow(c)).join('')}
                     </div>
-                    <div class="admin-compensation-footer">
-                        <button type="button" id="admin-compensation-apply" class="btn btn-primary" disabled>
-                            Отметить
-                        </button>
-                    </div>
                 </div>
             `);
         }
 
         this.list.innerHTML = parts.join('');
+        // ИЗМЕНЕНО: блок с чекбоксами и кнопкой "Отметить" удалён
 
         // ДОБАВЛЕНО: обработчики чекбоксов компенсаций
         const checkboxes = this.list.querySelectorAll('.admin-compensation-row input[type="checkbox"]');
@@ -143,19 +139,21 @@ export class AdminBalanceModal {
     }
 
     renderCompensationRow(c) {
-        const dateLabel = this.formatDate(c.date);
-        const meta = c.course_name
-            ? `${c.course_name} · ${dateLabel} · ${c.time}`
-            : `${dateLabel} · ${c.time}`;
+        // ИЗМЕНЕНО: без чекбокса, только информация
+        const dateLabel = c.date ? this.formatDate(c.date) : '';
+        const parts = [];
+        if (c.course_name) parts.push(c.course_name);
+        if (dateLabel) parts.push(dateLabel);
+        if (c.time) parts.push(c.time);
+        const meta = parts.join(' · ');
 
         return `
-            <label class="admin-compensation-row" data-id="${c.attendance_id}">
-                <input type="checkbox" value="${c.attendance_id}">
+            <div class="admin-compensation-row" data-id="${c.attendance_id || c.student_id}">
                 <div class="admin-compensation-info">
                     <span class="admin-compensation-name">${this.escapeHtml(c.student_name)}</span>
                     <span class="admin-compensation-meta">${this.escapeHtml(meta)}</span>
                 </div>
-            </label>
+            </div>
         `;
     }
 

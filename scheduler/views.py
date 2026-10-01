@@ -526,25 +526,33 @@ def load_problem_students(request):
         zero.sort(key=lambda x: x['full_name'].lower())
 
 
-        # ─── Компенсации ────────────────────────────────
-        compensations_qs = Attendance.objects.filter(
+        # Автоматические компенсации: ученик отсутствовал И было списание
+        # (универсально для индов и групп)
+        charged_event_students = set(
+            BalanceOperation.objects.filter(
+                operation_type=BalanceOperation.TYPE_CHARGE,
+                event__isnull=False,
+            ).values_list('event_id', 'student_id')
+        )
+
+        attendances_qs = Attendance.objects.filter(
             was_present=False,
             compensated=False,
-            event__completion_status=ScheduleEvent.COMPLETION_MISSED_STUDENT,
         ).select_related('student', 'event', 'event__course').order_by('-event__date', '-event__time')
 
-        compensations = [
-            {
+        compensations = []
+        for a in attendances_qs:
+            if (a.event_id, a.student_id) not in charged_event_students:
+                continue   # не списывали — компенсация не нужна
+            compensations.append({
                 'attendance_id': a.id,
                 'student_id': a.student.id,
                 'student_name': str(a.student),
                 'date': a.event.date.strftime('%Y-%m-%d'),
                 'time': a.event.time.strftime('%H:%M'),
                 'course_name': a.event.course.name if a.event.course else '',
-            }
-            for a in compensations_qs
-        ]
-
+                'is_manual': False,
+            })
 
         return JsonResponse({
             'status': 'success',
