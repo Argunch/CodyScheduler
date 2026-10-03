@@ -14,9 +14,10 @@ class EventManager:
         # 1. Парсим данные
         parsed_data = self.parse_event_data(data)
 
-        # ДОБАВЛЕНО: если есть ученики — курс обязателен
+         # ДОБАВЛЕНО: если есть ученики и это не компенсация — курс обязателен
         student_ids = parsed_data.get('student_ids') or []
-        if student_ids and not parsed_data.get('course_id'):
+        is_compensation = parsed_data.get('is_compensation')
+        if student_ids and not is_compensation and not parsed_data.get('course_id'):
             raise ValueError('Для занятия с учениками нужен курс')
         
         # 2. Получаем ID события
@@ -178,6 +179,7 @@ class EventManager:
         original_duration = event.duration
          # NEW: запоминаем старых учеников — они останутся у новой серии
         original_student_ids = list(event.students.values_list('id', flat=True))
+        original_course_id = event.course_id   # ДОБАВЛЕНО
 
         # 1. Удаляем все будущие события старой серии (но НЕ трогаем текущее)
         ScheduleEvent.objects.filter(
@@ -210,7 +212,8 @@ class EventManager:
                 original_duration,
                 new_series_id,
                 weeks_ahead=52,
-                student_ids=original_student_ids,   # NEW
+                student_ids=original_student_ids,
+                course_id=original_course_id,   # ← ДОБАВЛЕНО
             )
 
         # 3. Обновляем текущее событие → превращаем в одиночное
@@ -224,12 +227,39 @@ class EventManager:
         if parsed_data['student_ids'] is not None:
             event.students.set(parsed_data['student_ids'])
 
-        if parsed_data.get('course_id') is not None:                                 # ДОБАВЛЕНО
-            event.course_id = parsed_data['course_id'] or None                       # ДОБАВЛЕНО
+        if parsed_data.get('course_id') is not None:
+            event.course_id = parsed_data['course_id'] or None
+            event.save(update_fields=['course'])   # ← без этой строки поле не сохраняется
 
         return event
 
-    def _update_single_event(self,event,parsed_data):
+    def _update_single_event(self, event, parsed_data):
+        # Компенсация — обновляем связь ПЕРВОЙ, до любых списаний
+        if parsed_data.get('is_compensation') is not None:
+            from .models import Attendance
+
+            event.is_compensation = parsed_data['is_compensation']
+            event.save(update_fields=['is_compensation'])
+
+            # Запоминаем старые ID пропусков ДО изменений
+            old_att_ids = set(event.compensation_attendances.values_list('id', flat=True))
+
+            if parsed_data['is_compensation']:
+                compensations = parsed_data.get('compensations') or []
+                new_att_ids = {c['attendance_id'] for c in compensations if c.get('attendance_id')}
+                event.compensation_attendances.set(new_att_ids)
+
+                # Возвращаем compensated=False тем, кого убрали
+                removed_ids = old_att_ids - new_att_ids
+                if removed_ids:
+                    Attendance.objects.filter(id__in=removed_ids).update(compensated=False)
+            else:
+                # Событие больше не компенсация — все пропуски вернуть
+                event.compensation_attendances.clear()
+                if old_att_ids:
+                    Attendance.objects.filter(id__in=old_att_ids).update(compensated=False)
+
+
         # Обновляем только одно нерегулярное событие
         event.date = parsed_data['date_obj']
         event.time = parsed_data['time_obj']
@@ -239,18 +269,16 @@ class EventManager:
         event.duration = parsed_data['duration']
         event.save()
 
-        # NEW: если фронт передал student_ids
         if parsed_data['student_ids'] is not None:
-            # Запоминаем старый состав до изменения
             old_ids = set(event.students.values_list('id', flat=True))
             event.students.set(parsed_data['student_ids'])
-            # Полный ре-синк
             self._resync_event_students(event, old_ids)
 
-        if parsed_data.get('course_id') is not None:                                 # ДОБАВЛЕНО
-            event.course_id = parsed_data['course_id'] or None                       # ДОБАВЛЕНО
+        if parsed_data.get('course_id') is not None:
+            event.course_id = parsed_data['course_id'] or None
+            event.save(update_fields=['course'])
 
-        # ДОБАВЛЕНО: если пришёл completion_status — обновляем и синхронизируем списание
+        # Обновляем completion_status в самом конце
         new_completion = parsed_data.get('completion_status')
         if new_completion is not None and new_completion != event.completion_status:
             from django.utils import timezone
@@ -261,7 +289,6 @@ class EventManager:
                 event.completed_at = None
             event.save(update_fields=['completion_status', 'completed_at'])
 
-            # Синхронизируем charge для каждого ученика (для индов — один)
             for student in event.students.all():
                 self._sync_charge_for_event(event, student)
 
@@ -318,11 +345,21 @@ class EventManager:
             is_recurring=False,
             duration=parsed_data['duration'],
             course_id=parsed_data.get('course_id') or None,   # ДОБАВЛЕНО
+            is_compensation=parsed_data.get('is_compensation', False),                                    # ДОБАВЛЕНО
             created_by=self.request_user
         )
         # NEW: привязываем учеников (если переданы)
         if parsed_data['student_ids']:
             event.students.set(parsed_data['student_ids'])
+
+        # Сохраняем компенсации (M2M)
+        compensations = parsed_data.get('compensations') or []
+        if compensations:
+            attendance_ids = [c['attendance_id'] for c in compensations if c.get('attendance_id')]
+            if attendance_ids:
+                event.compensation_attendances.set(attendance_ids)
+
+
         return event
     
     def create_recurring_events(self, parsed_data):
@@ -421,56 +458,9 @@ class EventManager:
             'student_ids': data.get('student_ids', None),   # NEW: None = не трогать
             'course_id': data.get('course_id'),   # ДОБАВЛЕНО
             'completion_status': data.get('completion_status'),    # ДОБАВЛЕНО
+            'is_compensation': data.get('is_compensation', None),
+            'compensations': data.get('compensations', None),  # [{student_id, attendance_id}, ...]
         }
-
-    # def _sync_charge_for_event(self, event, student):
-    #     """
-    #     Синхронизирует списание (BalanceOperation type=charge) для события и ученика.
-    #     - Если статус события = passed и есть курс с ценой — создаёт или обновляет списание.
-    #     - Если статус не passed — удаляет существующее списание.
-    #     """
-    #     from .models import StudentCoursePrice, BalanceOperation
-
-    #     # Удаляем предыдущее списание по этому событию и ученику (если было)
-    #     BalanceOperation.objects.filter(
-    #         event=event,
-    #         student=student,
-    #         operation_type=BalanceOperation.TYPE_CHARGE,
-    #     ).delete()
-
-    #     # ИЗМЕНЕНО: списываем при passed или missed_student
-    #     chargeable = (
-    #         event.completion_status == ScheduleEvent.COMPLETION_PASSED
-    #         or event.completion_status == ScheduleEvent.COMPLETION_MISSED_STUDENT
-    #     )
-    #     if not chargeable:
-    #         return
-
-    #     # Нет курса — списывать нечего
-    #     if not event.course_id:
-    #         print(f'[charge] У события {event.id} нет курса — списание не создано')
-    #         return
-
-    #     # Нет цены для пары (ученик, курс) — списывать нечего
-    #     price_obj = StudentCoursePrice.objects.filter(
-    #         student=student,
-    #         course_id=event.course_id,
-    #     ).first()
-    #     if not price_obj or price_obj.price_per_lesson <= 0:
-    #         print(f'[charge] У ученика {student.id} нет цены на курс {event.course_id} — списание не создано')
-    #         return
-
-    #     # Создаём списание
-    #     BalanceOperation.objects.create(
-    #         student=student,
-    #         course_id=event.course_id,
-    #         amount=-price_obj.price_per_lesson,       # отрицательное!
-    #         operation_type=BalanceOperation.TYPE_CHARGE,
-    #         operation_date=event.date,
-    #         event=event,
-    #         created_by=self.request_user,
-    #     )
-    #     print(f'[charge] Списано {price_obj.price_per_lesson}₽ с {student} за событие {event.id}')
     
 
     def _sync_charge_for_event(self, event, student, was_present=None):
@@ -484,6 +474,8 @@ class EventManager:
         """
         from .models import StudentCoursePrice, BalanceOperation
 
+
+
         # 1. Удаляем предыдущее списание по этому событию и ученику
         BalanceOperation.objects.filter(
             event=event,
@@ -494,13 +486,15 @@ class EventManager:
         # 2. Определяем, надо ли списывать
         should_charge = False
 
-        if event.status == ScheduleEvent.STATUS_INDIVIDUAL:
+        # Компенсация — не списываем, деньги ушли при пропуске
+        if event.is_compensation:
+            should_charge = False
+        elif event.status == ScheduleEvent.STATUS_INDIVIDUAL:
             should_charge = event.completion_status in (
                 ScheduleEvent.COMPLETION_PASSED,
                 ScheduleEvent.COMPLETION_MISSED_STUDENT,
             )
         elif event.status == ScheduleEvent.STATUS_GROUP:
-            # ИЗМЕНЕНО: новая логика для групповых
             if was_present:
                 should_charge = True
             else:
@@ -521,6 +515,19 @@ class EventManager:
         ).first()
         if not price_obj or price_obj.price_per_lesson <= 0:
             print(f'[charge] У ученика {student.id} нет цены на курс {event.course_id} — списание не создано')
+            return
+
+
+        # Проверяем баланс на дату события — оплата задним числом не покрывает прошлое
+        from django.db.models import Sum
+        balance_at_date = BalanceOperation.objects.filter(
+            student=student,
+            course_id=event.course_id,
+            operation_date__lte=event.date,   # операции по дату события включительно
+        ).aggregate(s=Sum('amount'))['s'] or 0
+
+        if balance_at_date < price_obj.price_per_lesson:
+            print(f'[charge] Баланс на {event.date} = {balance_at_date} < {price_obj.price_per_lesson} — не списываем')
             return
 
         # 4. Создаём списание
@@ -588,6 +595,9 @@ class EventManager:
                     }
                     for s in event.students.all()
                 ],
+
+                'is_compensation': event.is_compensation,
+                'course_name': event.course.name if event.course else '',
             })
 
         return result
@@ -650,6 +660,13 @@ class EventManager:
                 was_present = attendance_map.get(stu.id, False)
                 self._sync_charge_for_event(event, stu, was_present=was_present) 
 
+            # Компенсация: закрываем пропуски персонально для тех, кто был
+            if event.is_compensation:
+                for comp_att in event.compensation_attendances.all():
+                    was_present = attendance_map.get(comp_att.student_id, False)
+                    comp_att.compensated = was_present
+                    comp_att.save(update_fields=['compensated'])
+
 
             return {
                 'id': event.id,
@@ -689,6 +706,16 @@ class EventManager:
 
             # ДОБАВЛЕНО: списание за занятие, если статус = passed
             self._sync_charge_for_event(event, student)
+
+            # Компенсация: если passed — закрываем все связанные пропуски
+            if event.is_compensation:
+                from .models import Attendance
+                attendance_ids = list(event.compensation_attendances.values_list('id', flat=True))
+                if attendance_ids:
+                    Attendance.objects.filter(id__in=attendance_ids).update(
+                        compensated=(completion_status == ScheduleEvent.COMPLETION_PASSED)
+                    )
+
 
             return {
                 'id': event.id,

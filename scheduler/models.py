@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.db.models.signals import m2m_changed
+from django.db.models.signals import m2m_changed, pre_delete
 from django.dispatch import receiver
 
 from datetime import datetime, timedelta
@@ -259,6 +259,19 @@ class ScheduleEvent(models.Model):
     duration = models.FloatField(default=1.0, help_text="Duration in hours")
     created_by = models.ForeignKey(User,on_delete=models.CASCADE,related_name='created_events',verbose_name='Создатель',
                                    default=1)
+    is_compensation = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name='Компенсация'
+    )
+    compensation_attendances = models.ManyToManyField(
+        'Attendance',
+        blank=True,
+        related_name='compensating_events',
+        verbose_name='Отработанные пропуски'
+    )
+    
+    
     course = models.ForeignKey(
         'Course',
         on_delete=models.SET_NULL,
@@ -266,6 +279,7 @@ class ScheduleEvent(models.Model):
         related_name='events',
         verbose_name='Курс'
     )
+
 
     # ─── NEW: Ученики и статус ───────────────────────────
     students = models.ManyToManyField(
@@ -474,4 +488,14 @@ def update_schedule_event_status(sender, instance, action, **kwargs):
     if action in ('post_add', 'post_remove', 'post_clear'):
         instance.recalculate_status()
 
+
+@receiver(pre_delete, sender=ScheduleEvent)
+def restore_attendance_on_compensation_delete(sender, instance, **kwargs):
+    """Перед удалением события-компенсации возвращаем пропуски в некомпенсированные."""
+    if instance.is_compensation:
+        attendance_ids = list(instance.compensation_attendances.values_list('id', flat=True))
+        if attendance_ids:
+            Attendance.objects.filter(id__in=attendance_ids).update(compensated=False)
+
+        
 

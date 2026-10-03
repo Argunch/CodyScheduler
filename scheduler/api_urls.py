@@ -52,4 +52,6 @@ urlpatterns = [
     path('load-problem-students/', views.load_problem_students, name='load_problem_students'),
 
     path('mark-compensated/', views.mark_compensated, name='mark_compensated'),
+
+    path('load-student-compensations/', views.load_student_compensations, name='load_student_compensations'),
 ]

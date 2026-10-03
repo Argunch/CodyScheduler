@@ -84,6 +84,14 @@
         <h3 id="event-modal-title" >Добавить событие</h3>
         <p id="modal-time-info"></p>
 
+        <div class="form-group" id="event-type-group" style="display: none;">
+            <label for="event-type">Тип:</label>
+            <select id="event-type" class="form-input">
+                <option value="lesson" selected>Занятие</option>
+                <option value="compensation">Компенсация</option>
+            </select>
+        </div>
+
         <div class="form-group" id="event-course-group" style="display: none;">
             <label for="event-course">Курс: <span style="color: #d32f2f;">*</span></label>
             <select id="event-course" class="form-input">
@@ -316,6 +324,23 @@
             <p class="admin-unmarked-subtitle">Ученики с нулевым или отрицательным балансом</p>
             <div id="admin-balance-list" class="admin-unmarked-list">
                 <!-- Заполняется через JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка выбора компенсации -->
+    <div id="compensation-select-modal" class="compensation-select-modal">
+        <div class="compensation-select-window">
+            <div class="compensation-select-header">
+                <h3 id="compensation-select-title">Компенсации</h3>
+                <span class="close" id="compensation-select-close">&times;</span>
+            </div>
+            <div id="compensation-select-list" class="compensation-select-list">
+                <!-- Заполняется через JS -->
+            </div>
+            <div class="compensation-select-footer">
+                <button type="button" id="compensation-select-cancel" class="btn btn-secondary">Отмена</button>
+                <button type="button" id="compensation-select-ok" class="btn btn-primary" disabled>Подтвердить</button>
             </div>
         </div>
     </div>

@@ -93,34 +93,39 @@ export class OverlayManager {
             position: 'absolute'
         });
 
-        // ИЗМЕНЕНО: новая логика — курс вместо текста
-        const courseName = eventData.course_name || '';
         const students = Array.isArray(eventData.students) ? eventData.students : [];
 
-        if (courseName) {
-            // Событие с курсом
+        if (eventData.is_compensation) {
+            // ИЗМЕНЕНО: для компенсации — просто метка "Компенсация" + имена учеников
             const titleDiv = document.createElement('div');
             titleDiv.className = 'event-title';
-            titleDiv.textContent = courseName;
+            titleDiv.textContent = 'Компенсация';
             overlay.appendChild(titleDiv);
 
-            // Для индивидуального (1 ученик) — вторая строка с именем
             if (students.length === 1) {
                 const studentDiv = document.createElement('div');
                 studentDiv.className = 'event-student-name';
-                // ДОБАВЛЕНО: показываем (N) оплаченных занятий
-                // ИЗМЕНЕНО: используем remaining_lessons вместо paid_lessons
-                const remaining = students[0].remaining_lessons;
-                const suffix = (remaining !== null && remaining !== undefined) ? ` (${remaining})` : '';
-                studentDiv.textContent = students[0].full_name + suffix;
+                studentDiv.textContent = students[0].full_name;
                 overlay.appendChild(studentDiv);
                 overlay.classList.add('with-student');
             }
-            // Для группового (2+) или пустого — только курс, одна строка
+        } else if (eventData.course_name) {
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'event-title';
+            titleDiv.textContent = eventData.course_name;
+            overlay.appendChild(titleDiv);
+
+            if (students.length === 1) {
+                const studentDiv = document.createElement('div');
+                studentDiv.className = 'event-student-name';
+                studentDiv.textContent = students[0].full_name;
+                overlay.appendChild(studentDiv);
+                overlay.classList.add('with-student');
+            }
         } else {
-            // Старая заметка без курса — fallback на текст
             overlay.textContent = eventData.text || '';
         }
+
 
         // Ниже без изменений:
         this.setOverlayAttributes(overlay, eventData);
@@ -223,16 +228,16 @@ export class OverlayManager {
     emitOverlayClick(overlay, eventData) {
         const eventDataFromOverlay = eventUtils.extractEventFromOverlay(overlay);
 
-        // Мержим: данные из DOM-атрибутов + оригинальные данные события.
-        // student_ids и students не хранятся в атрибутах — их берём из eventData.
-        const merged = {
-            ...eventData,
+         const merged = {
             ...eventDataFromOverlay,
+            ...eventData,
+            is_compensation: eventData.is_compensation ?? eventDataFromOverlay.is_compensation,
+            compensations: eventData.compensations ?? eventDataFromOverlay.compensations ?? [],
             student_ids: eventData.student_ids || [],
             students: eventData.students || [],
         };
-        
-        const overlayClickEvent = new CustomEvent('overlayClicked', { // переименовали событие
+
+        const overlayClickEvent = new CustomEvent('overlayClicked', {
             detail: {
                 overlay: overlay,
                 eventData: merged,

@@ -26,6 +26,9 @@ export const EVENT_STRUCTURE = {
 
     completion_status: '',   // ДОБАВЛЕНО
     completed_at: null,      // ДОБАВЛЕНО
+
+    is_compensation: false,
+    compensations: [],
 };
 
 // МАППИНГ ДЛЯ DATA-АТРИБУТОВ
@@ -46,6 +49,8 @@ export const DATA_ATTRIBUTE_MAPPING = {
     'data-course-id': 'course_id',   // ДОБАВЛЕНО
     'data-course-name': 'course_name',
     'data-completion-status': 'completion_status',   // ДОБАВЛЕНО
+
+    'data-is-compensation': 'is_compensation',
 };
 
 

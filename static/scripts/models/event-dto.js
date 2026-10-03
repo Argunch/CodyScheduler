@@ -67,13 +67,10 @@ export class EventDTO {
             delete processed.series_id;
         }
         
-        // ❌ НЕ УДАЛЯЕМ null значения для series_id!
         // Очистка null значений только для некоторых полей
         Object.keys(processed).forEach(key => {
-            // Не очищаем series_id если он null - это важно для регулярных событий
-            if (key !== 'series_id' && processed[key] === null) {
-                delete processed[key];
-            }
+            if (key === 'series_id') return;   // series_id может быть null специально
+            if (processed[key] === null) delete processed[key];
         });
         
         // console.log('🔧 Prepared for API:', processed);

@@ -287,10 +287,11 @@ export class EventManager {
      * @param {Object} eventData - Данные события
      */
     async createEvent(eventData) {
+        console.log("Создали событие");
         try {
             // ✅ ПРЕДОБРАБОТКА ДАННЫХ ПЕРЕД ОТПРАВКОЙ
             const processedData = EventDTO.prepareForApi(eventData);
-
+            console.log('📤 PAYLOAD save-event:', JSON.stringify(processedData, null, 2));
             const response = await this.apiService.saveEvent(processedData);
             
             if (response.status === 'success') {

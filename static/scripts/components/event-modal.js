@@ -20,6 +20,12 @@ export class EventModal {
         this.selectedStudentIds = [];   // массив ID
         this.allStudents = [];          // кэш последнего загруженного списка
 
+        // выбор типа
+        this.selectedEventType = 'lesson';
+
+        this.compensationAttendanceId = null;   // выбранный Attendance для компенсации
+        this.compensationLabel = '';             // текст для отображения под именем
+
         // выбор курса
         this.selectedCourseId = null;    
         this._loadedCourses = [];        
@@ -31,6 +37,16 @@ export class EventModal {
         // ДОБАВЛЕНО: определяем, суперюзер ли текущий пользователь
         const meta = document.querySelector('meta[name="is-superuser"]');
         this.isSuperuser = meta && meta.getAttribute('content') === 'true';
+
+        // компенсации
+        // Компенсации per-student: { [studentId]: { attendanceId, label, courseId } }
+        this.compensationsByStudent = {};
+        // Временные поля для модалки выбора
+        this.compensationTempSelection = null;
+        this.compensationTempLabel = '';
+        this.compensationTempCourseId = null;
+        this.compensationModalStudentId = null;
+        
 
         this.elements = {
             modal: document.getElementById('event-modal'),
@@ -91,7 +107,18 @@ export class EventModal {
             attendanceList: document.getElementById('attendance-list'),               
             attendanceClose: document.getElementById('attendance-close'),             
             attendanceCancel: document.getElementById('attendance-cancel'),           
-            attendanceSave: document.getElementById('attendance-save'),               
+            attendanceSave: document.getElementById('attendance-save'),      
+            
+            typeGroup: document.getElementById('event-type-group'),
+            typeSelect: document.getElementById('event-type'),
+
+            // модальное окно компенсаций
+            compSelectModal: document.getElementById('compensation-select-modal'),
+            compSelectTitle: document.getElementById('compensation-select-title'),
+            compSelectList: document.getElementById('compensation-select-list'),
+            compSelectClose: document.getElementById('compensation-select-close'),
+            compSelectCancel: document.getElementById('compensation-select-cancel'),
+            compSelectOk: document.getElementById('compensation-select-ok'),
         };
 
         this.dayNames = {
@@ -130,6 +157,8 @@ export class EventModal {
         this.elements.moveModalCancel.addEventListener('click', () => this.hideMoveModal());
         this.elements.moveOverlay.addEventListener('click', () => this.hideMoveModal());
 
+
+
         // Обработчики модального окна выбора учеников
         if (this.elements.addStudentsBtn) {
             this.elements.addStudentsBtn.addEventListener('click', () => this.showStudentsModal());
@@ -148,6 +177,16 @@ export class EventModal {
         }
         if (this.elements.studentsOverlay) {
             this.elements.studentsOverlay.addEventListener('click', () => this.hideStudentsModal());
+        }
+        //выбор типа
+        if (this.elements.typeSelect) {
+            this.elements.typeSelect.addEventListener('change', () => {
+                this.selectedEventType = this.elements.typeSelect.value;
+                // Сбрасываем все компенсации при смене типа
+                this.compensationsByStudent = {};
+                this.updateCourseVisibility();
+                this.renderSelectedStudents();
+            });
         }
 
         // выбор курса
@@ -187,7 +226,30 @@ export class EventModal {
         }                                                                                                 
         if (this.elements.attendanceSave) {                                                               
             this.elements.attendanceSave.addEventListener('click', () => this.handleAttendanceSave());    
-        }                                                                                                 
+        }
+        
+        
+        // модальное окно компенсаций
+        if (this.elements.compSelectClose) {
+            this.elements.compSelectClose.addEventListener('click', () => this.closeCompensationModal());
+        }
+        if (this.elements.compSelectCancel) {
+            this.elements.compSelectCancel.addEventListener('click', () => this.closeCompensationModal());
+        }
+        if (this.elements.compSelectModal) {
+            this.elements.compSelectModal.addEventListener('click', (e) => {
+                if (e.target === this.elements.compSelectModal) this.closeCompensationModal();
+            });
+        }
+        if (this.elements.compSelectOk) {
+            this.elements.compSelectOk.addEventListener('click', () => this.confirmCompensation());
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.compSelectModal?.classList.contains('active')) {
+                e.stopPropagation();
+                this.closeCompensationModal();
+            }
+        }, true);
     }
 
     // ПОКАЗАТЬ МОДАЛЬНОЕ ОКНО ПЕРЕНОСА
@@ -668,6 +730,12 @@ export class EventModal {
             this.elements.selectedStudentsList.innerHTML = '';
         }
 
+        this.selectedEventType = 'lesson';
+        if (this.elements.typeSelect) this.elements.typeSelect.value = 'lesson';
+
+        this.compensationAttendanceId = null;
+        this.compensationLabel = '';
+
         this.selectedCourseId = null;                                                  
         if (this.elements.courseSelect) this.elements.courseSelect.value = '';         
 
@@ -722,7 +790,6 @@ export class EventModal {
                 }
             });
         }
-        this.renderSelectedStudents();
 
         if (eventData.course_id) {                                                    
             this.selectedCourseId = eventData.course_id;                                
@@ -742,18 +809,41 @@ export class EventModal {
             if (this.elements.completionGroup) {
                 this.elements.completionGroup.style.display = 'none';
             }
-        } else if (eventData.completion_status) {
-            // Инд с отметкой: показываем статус
+        } else {
+            // ИНДИВИДУАЛЬНОЕ — статус показываем ВСЕГДА (даже без отметки)
             if (this.elements.completionGroup) {
                 this.elements.completionGroup.style.display = 'block';
             }
             if (this.elements.completionSelect) {
-                this.elements.completionSelect.value = eventData.completion_status;
+                this.elements.completionSelect.value = eventData.completion_status || '';
             }
             if (this.elements.attendanceGroup) {
                 this.elements.attendanceGroup.style.display = 'none';
             }
         }
+
+        
+        if (eventData.is_compensation) {
+            this.selectedEventType = 'compensation';
+            if (this.elements.typeSelect) this.elements.typeSelect.value = 'compensation';
+
+            // Восстанавливаем map компенсаций из массива
+            this.compensationsByStudent = {};
+            const comps = Array.isArray(eventData.compensations) ? eventData.compensations : [];
+            comps.forEach(c => {
+                const dateShort = c.date ? c.date.split('-').reverse().slice(0, 2).join('.') : '';
+                const label = `${c.course_name || 'Без курса'} · ${dateShort} · ${c.time}`;
+                this.compensationsByStudent[c.student_id] = {
+                    attendanceId: c.attendance_id,
+                    label: label,
+                };
+            });
+        } else {
+            this.selectedEventType = 'lesson';
+            if (this.elements.typeSelect) this.elements.typeSelect.value = 'lesson';
+            this.compensationsByStudent = {};
+        }
+        this.renderSelectedStudents();
     }
 
     setupNewEventForm() {
@@ -833,8 +923,20 @@ export class EventModal {
             [EVENT_FIELDS.IS_RECURRING]: this.elements.recurringCheckbox.checked,
             [EVENT_FIELDS.DURATION]: duration,
             [EVENT_FIELDS.START_MINUTES]: minutes,
-            course_id: this.selectedCourseId,   // ДОБАВЛЕНО
+            event_type: this.selectedEventType, //тип заметки
+            course_id: this.selectedCourseId,   // ДОБАВЛЕНО курс
             completion_status: this.elements.completionSelect?.value || '',   // ДОБАВЛЕНО
+            is_compensation: this.selectedEventType === 'compensation',
+            // Для компенсации курс не передаём — он берётся из пропуска ученика
+            course_id: this.selectedEventType === 'compensation'
+                ? null
+                : this.selectedCourseId,
+            compensations: this.selectedEventType === 'compensation'
+                ? this.selectedStudentIds.map(sid => {
+                    const c = this.compensationsByStudent[sid];
+                    return c ? { student_id: sid, attendance_id: c.attendanceId } : null;
+                }).filter(Boolean)
+                : [],
         });
 
         // ✅ ДОБАВЛЯЕМ target_user_id ДЛЯ СОЗДАНИЯ В ЧУЖОМ РАСПИСАНИИ
@@ -845,9 +947,23 @@ export class EventModal {
         // console.log('📋 GET FORM DATA - final formData:', formData);
 
         // ДОБАВЛЕНО: если есть ученики — курс обязателен
-        if (this.selectedStudentIds.length > 0 && !this.selectedCourseId) {
+        // Валидация курса — только для обычного занятия
+        if (
+            this.selectedEventType !== 'compensation' &&
+            this.selectedStudentIds.length > 0 &&
+            !this.selectedCourseId
+        ) {
             alert('Выберите курс для занятия с учениками');
-            return null;   // нужно будет обработать в save()
+            return null;
+        }
+
+        // Валидация компенсаций
+        if (this.selectedEventType === 'compensation' && this.selectedStudentIds.length > 0) {
+            const missing = this.selectedStudentIds.filter(sid => !this.compensationsByStudent[sid]);
+            if (missing.length > 0) {
+                alert('У каждого ученика должна быть выбрана компенсация');
+                return null;
+            }
         }
 
         // ✅ ИСПОЛЬЗУЕМ DTO ДЛЯ АВТОМАТИЧЕСКОЙ ПОДГОТОВКИ ДАННЫХ
@@ -857,6 +973,8 @@ export class EventModal {
         // ✅ Добавляем student_ids напрямую, минуя DTO
         // (student_ids нет в EVENT_STRUCTURE, но сервер его ждёт)
         apiData.student_ids = this.selectedStudentIds || [];
+
+
 
         return apiData;
     }
@@ -967,22 +1085,50 @@ export class EventModal {
         if (this.selectedStudentIds.length === 0) {
             container.innerHTML = '';
             this.updateModalText();
+            this.updateCourseVisibility();
             return;
         }
+
+        const isCompensation = this.selectedEventType === 'compensation';
 
         container.innerHTML = this.selectedStudentIds.map(id => {
             const student = this.allStudents.find(s => s.id === id);
             const name = student ? student.full_name : `ID ${id}`;
+
+            if (isCompensation) {
+                const comp = this.compensationsByStudent[id];
+                const label = comp ? comp.label : 'курс не выбран · дата не выбрана';
+                return `
+                    <button type="button"
+                            class="selected-student-row selected-student-compensation"
+                            data-student-id="${id}"
+                            title="Выбрать компенсацию">
+                        <span class="selected-student-name">${this.escapeHtml(name)}</span>
+                        <span class="selected-student-meta">${this.escapeHtml(label)}</span>
+                    </button>
+                `;
+            }
+
             return `
                 <a class="selected-student-row"
-                href="/students/${id}/"
-                title="Открыть профиль">${this.escapeHtml(name)}</a>
+                   href="/students/${id}/"
+                   title="Открыть профиль">${this.escapeHtml(name)}</a>
             `;
         }).join('');
 
+        if (isCompensation) {
+            container.querySelectorAll('.selected-student-compensation').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const sid = parseInt(btn.dataset.studentId, 10);
+                    this.openCompensationModal(sid);
+                });
+            });
+        }
+
         this.updateModalText();
-        this.updateCourseVisibility();   // ДОБАВЛЕНО
+        this.updateCourseVisibility();
     }
+
 
     /**
      * Обновляет заголовок и placeholder в зависимости от наличия учеников
@@ -1000,6 +1146,138 @@ export class EventModal {
                 ? 'Заметка к занятию'
                 : 'Введите текст события';
         }
+    }
+
+    /* =====================================================
+       Модалка выбора компенсации
+       ===================================================== */
+
+    async openCompensationModal(studentId) {
+        this.compensationModalStudentId = studentId;
+        this.compensationTempSelection = null;
+        this.compensationTempLabel = '';
+        this.compensationTempCourseId = null;
+
+        // Имя ученика
+        const student = this.allStudents.find(s => s.id === studentId);
+        const name = student ? student.full_name : `ID ${studentId}`;
+        if (this.elements.compSelectTitle) {
+            this.elements.compSelectTitle.textContent = `Компенсации "${name}"`;
+        }
+
+        // Загружаем список доступных компенсаций
+        await this.loadCompensations(studentId);
+
+        // Если у ученика уже есть выбранная компенсация — подсвечиваем её
+        const existing = this.compensationsByStudent[studentId];
+        if (existing && this.elements.compSelectList) {
+            const row = this.elements.compSelectList.querySelector(
+                `.compensation-select-row[data-attendance-id="${existing.attendanceId}"]`
+            );
+            if (row) {
+                row.classList.add('selected');
+                this.compensationTempSelection = existing.attendanceId;
+                this.compensationTempLabel = existing.label;
+                this.compensationTempCourseId = existing.courseId;
+                if (this.elements.compSelectOk) this.elements.compSelectOk.disabled = false;
+            }
+        }
+
+        if (this.elements.compSelectModal) this.elements.compSelectModal.classList.add('active');
+    }
+
+
+
+    closeCompensationModal() {
+        if (this.elements.compSelectModal) {
+            this.elements.compSelectModal.classList.remove('active');
+        }
+    }
+
+    async loadCompensations(studentId) {
+        const container = this.elements.compSelectList;
+        if (!container) return;
+
+        container.innerHTML = '<div class="compensation-select-empty">Загрузка...</div>';
+
+        try {
+            const response = await fetch(
+                `/api/load-student-compensations/?student_id=${studentId}`,
+                { cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+            );
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                this.renderCompensationList(data.compensations, studentId);
+            } else {
+                container.innerHTML = `<div class="compensation-select-empty">${data.message || 'Ошибка загрузки'}</div>`;
+            }
+        } catch (error) {
+            console.error('❌ load-student-compensations:', error);
+            container.innerHTML = '<div class="compensation-select-empty">Ошибка сети</div>';
+        }
+    }
+
+     renderCompensationList(compensations, studentId) {
+        const container = this.elements.compSelectList;
+        if (!container) return;
+
+        // Собираем все уже выбранные attendanceId, кроме текущего ученика
+        const usedElsewhere = new Set();
+        Object.entries(this.compensationsByStudent).forEach(([sid, c]) => {
+            if (parseInt(sid, 10) !== studentId && c.attendanceId) {
+                usedElsewhere.add(c.attendanceId);
+            }
+        });
+
+        const available = (compensations || []).filter(c => !usedElsewhere.has(c.attendance_id));
+
+        if (available.length === 0) {
+            container.innerHTML = '<div class="compensation-select-empty">Нет доступных компенсаций</div>';
+            return;
+        }
+
+        container.innerHTML = available.map(c => {
+            const dateLabel = this.formatCompDate(c.date);
+            const meta = `${c.course_name || 'Без курса'} · ${dateLabel} · ${c.time}`;
+            return `
+                <button type="button" class="compensation-select-row"
+                        data-attendance-id="${c.attendance_id}"
+                        data-course-id="${c.course_id || ''}"
+                        data-label="${this.escapeHtml(meta)}">
+                    <span class="comp-course">${this.escapeHtml(c.course_name || 'Без курса')}</span>
+                    <span class="comp-meta">${dateLabel} · ${c.time}</span>
+                </button>
+            `;
+        }).join('');
+
+        container.querySelectorAll('.compensation-select-row').forEach(row => {
+            row.addEventListener('click', () => {
+                container.querySelectorAll('.compensation-select-row').forEach(r => r.classList.remove('selected'));
+                row.classList.add('selected');
+                this.compensationTempSelection = parseInt(row.dataset.attendanceId, 10);
+                this.compensationTempLabel = row.dataset.label;
+                this.compensationTempCourseId = row.dataset.courseId ? parseInt(row.dataset.courseId, 10) : null;
+                if (this.elements.compSelectOk) this.elements.compSelectOk.disabled = false;
+            });
+        });
+    }
+
+    confirmCompensation() {
+        if (!this.compensationTempSelection || !this.compensationModalStudentId) return;
+
+        this.compensationsByStudent[this.compensationModalStudentId] = {
+            attendanceId: this.compensationTempSelection,
+            label: this.compensationTempLabel,
+        };
+
+        this.renderSelectedStudents();
+        this.closeCompensationModal();
+    }
+
+    formatCompDate(iso) {
+        const [y, m, d] = iso.split('-');
+        return `${d}.${m}`;
     }
 
     escapeHtml(text) {
@@ -1082,12 +1360,33 @@ export class EventModal {
     }
 
     updateCourseVisibility() {
-        if (!this.elements.courseGroup) return;
         const hasStudents = this.selectedStudentIds.length > 0;
-        this.elements.courseGroup.style.display = hasStudents ? 'block' : 'none';
+
+        // Блок «Тип» — показываем вместе с курсом
+        if (this.elements.typeGroup) {
+            this.elements.typeGroup.style.display = hasStudents ? 'block' : 'none';
+        }
+        // Блок «Курс» — скрываем для компенсации
+        if (this.elements.courseGroup) {
+            const showCourse = hasStudents && this.selectedEventType !== 'compensation';
+            this.elements.courseGroup.style.display = showCourse ? 'block' : 'none';
+        }
+
         if (!hasStudents) {
             if (this.elements.courseSelect) this.elements.courseSelect.value = '';
+            if (this.elements.typeSelect) this.elements.typeSelect.value = 'lesson';
             this.selectedCourseId = null;
+            this.selectedEventType = 'lesson';   // сброс типа
+        }
+
+        // Скрываем «регулярно» для компенсации
+        const recurringGroup = this.elements.recurringCheckbox?.closest('.form-group');
+        if (recurringGroup) {
+            recurringGroup.style.display = this.selectedEventType === 'compensation' ? 'none' : '';
+        }
+        // Сбрасываем чекбокс, чтобы случайно не сохранить регулярную компенсацию
+        if (this.selectedEventType === 'compensation' && this.elements.recurringCheckbox) {
+            this.elements.recurringCheckbox.checked = false;
         }
     }
 

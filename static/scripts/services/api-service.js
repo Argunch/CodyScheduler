@@ -12,6 +12,7 @@ export class ApiService {
      */
     async saveEvent(eventData) {
         try {
+            // console.log('🌐 apiService.saveEvent отправляет:', JSON.stringify(payload, null, 2));
             const response = await fetch(`${this.baseUrl}/save-event/`, {
                 method: 'POST',
                 headers: {

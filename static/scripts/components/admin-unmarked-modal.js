@@ -132,7 +132,7 @@ export class AdminUnmarkedModal {
             return `
                 <div class="completion-card" data-id="${ev.id}" data-status="group">
                     <div class="completion-card-header">
-                        <div class="completion-card-title">${this.escapeHtml(ev.course_name || ev.text)}</div>
+                        <div class="completion-card-title">${this.escapeHtml(ev.is_compensation ? 'Компенсация' : (ev.course_name || ev.text || 'Без названия'))}</div>
                         <div class="completion-card-time">${timeLabel}</div>
                     </div>
                     <div class="completion-students">${studentRows}</div>

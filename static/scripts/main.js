@@ -169,6 +169,14 @@ async function initSchedulePage() {
             }
         }, 500);
 
+        // При возврате из bfcache — перезагружаем страницу
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                console.log('🔄 Восстановление из bfcache — перезагрузка');
+                window.location.reload();
+            }
+        });
+
     } catch (error) {
         console.error('💥 Ошибка инициализации расписания:', error);
     }

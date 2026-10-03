@@ -79,7 +79,7 @@ def load_events(request):
         events=ScheduleEvent.objects.filter(
             user=target_user,
             date__range=[date_from_obj,date_to_obj]
-        ).select_related('created_by', 'user', 'course').prefetch_related('students', 'attendances')
+        ).select_related('created_by', 'user', 'course').prefetch_related('students', 'attendances','compensation_attendances__event__course')
 
         events_data=[]
         for event in events:
@@ -113,6 +113,18 @@ def load_events(request):
                 'course_name': event.course.name if event.course else '',
                 'completion_status': event.completion_status,    # ДОБАВЛЕНО
                 'completed_at': event.completed_at.isoformat() if event.completed_at else None,   # ДОБАВЛЕНО
+
+                'is_compensation': event.is_compensation,
+                'compensations': [
+                    {
+                        'student_id': att.student_id,
+                        'attendance_id': att.id,
+                        'course_name': att.event.course.name if att.event.course else '',
+                        'date': att.event.date.strftime('%Y-%m-%d'),
+                        'time': att.event.time.strftime('%H:%M'),
+                    }
+                    for att in event.compensation_attendances.select_related('event__course').all()
+                ],
             })
         return  JsonResponse({'status': 'success', 'events': events_data})
 
@@ -134,7 +146,7 @@ def load_series_events(request):
         events = ScheduleEvent.objects.filter(
             user=target_user,
             series_id=series_id,
-        ).select_related('created_by', 'user', 'course').prefetch_related('students', 'attendances')
+        ).select_related('created_by', 'user', 'course').prefetch_related('students', 'attendances','compensation_attendances__event__course')
 
         events_data = []
         for event in events:
@@ -167,6 +179,18 @@ def load_series_events(request):
                 'course_name': event.course.name if event.course else '',
                 'completion_status': event.completion_status,    # ДОБАВЛЕНО
                 'completed_at': event.completed_at.isoformat() if event.completed_at else None,   # ДОБАВЛЕНО
+
+                'is_compensation': event.is_compensation,
+                'compensations': [
+                    {
+                        'student_id': att.student_id,
+                        'attendance_id': att.id,
+                        'course_name': att.event.course.name if att.event.course else '',
+                        'date': att.event.date.strftime('%Y-%m-%d'),
+                        'time': att.event.time.strftime('%H:%M'),
+                    }
+                    for att in event.compensation_attendances.select_related('event__course').all()
+                ],
             })
         
         return JsonResponse({'status': 'success', 'events': events_data})
@@ -476,6 +500,8 @@ def load_all_unmarked_events(request):
                     }
                     for s in event.students.all()
                 ],
+
+                'is_compensation': event.is_compensation,
             })
 
         return JsonResponse({'status': 'success', 'events': result})
@@ -588,6 +614,57 @@ def mark_compensated(request):
 
     except json.JSONDecodeError:
         return JsonResponse({'status': 'error', 'message': 'Неверный формат JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+
+
+@login_required
+def load_student_compensations(request):
+    """API: некомпенсированные пропуски конкретного ученика (только суперюзер)."""
+    if not request.user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'Доступ запрещён'}, status=403)
+
+    try:
+        from .models import Attendance, BalanceOperation
+
+        student_id = request.GET.get('student_id')
+        if not student_id:
+            return JsonResponse({'status': 'error', 'message': 'Не указан student_id'}, status=400)
+
+        # Пропуски ученика с was_present=False и compensated=False,
+        # по которым было списание
+        charged = set(
+            BalanceOperation.objects.filter(
+                operation_type=BalanceOperation.TYPE_CHARGE,
+                event__isnull=False,
+            ).values_list('event_id', 'student_id')
+        )
+
+        qs = Attendance.objects.filter(
+            student_id=student_id,
+            was_present=False,
+            compensated=False,
+        ).select_related('event', 'event__course').order_by('-event__date', '-event__time')
+
+        data = []
+        for a in qs:
+            if (a.event_id, a.student_id) not in charged:
+                continue
+            # Пропускаем пропуски, которые уже привязаны к незавершённой компенсации
+            if a.compensating_events.exists():
+                continue
+            data.append({
+                'attendance_id': a.id,
+                'event_id': a.event_id,
+                'course_id': a.event.course_id,  
+                'course_name': a.event.course.name if a.event.course else '',
+                'date': a.event.date.strftime('%Y-%m-%d'),
+                'time': a.event.time.strftime('%H:%M'),
+                'event_text': a.event.text or '',
+            })
+
+        return JsonResponse({'status': 'success', 'compensations': data})
+
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
 
