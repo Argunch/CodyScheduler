@@ -801,6 +801,9 @@ export class EventModal {
         // Сохраняем данные события для модалки посещаемости
         this.currentEventData = eventData;
 
+        const isIndividual = eventData.status === 'individual';
+        const isNote = eventData.status === 'note';
+
         if (isGroup) {
             // Группа: кнопка «Посещаемость», статус скрыт
             if (this.elements.attendanceGroup) {
@@ -809,7 +812,7 @@ export class EventModal {
             if (this.elements.completionGroup) {
                 this.elements.completionGroup.style.display = 'none';
             }
-        } else {
+        } else if (isIndividual) {
             // ИНДИВИДУАЛЬНОЕ — статус показываем ВСЕГДА (даже без отметки)
             if (this.elements.completionGroup) {
                 this.elements.completionGroup.style.display = 'block';
@@ -820,9 +823,17 @@ export class EventModal {
             if (this.elements.attendanceGroup) {
                 this.elements.attendanceGroup.style.display = 'none';
             }
+        } else {
+            // ЗАМЕТКА — скрываем оба блока
+            if (this.elements.completionGroup) {
+                this.elements.completionGroup.style.display = 'none';
+            }
+            if (this.elements.attendanceGroup) {
+                this.elements.attendanceGroup.style.display = 'none';
+            }
         }
 
-        
+
         if (eventData.is_compensation) {
             this.selectedEventType = 'compensation';
             if (this.elements.typeSelect) this.elements.typeSelect.value = 'compensation';
@@ -887,6 +898,8 @@ export class EventModal {
 
         // ✅ ПРАВИЛЬНЫЙ ПОРЯДОК: сначала контекст, потом форма
         const formData = {};
+
+
 
         // ✅ 1. СНАЧАЛА берем КОНТЕКСТ (неизменяемые данные)
         if (this.isEditing && this.currentEvent) {
@@ -964,6 +977,10 @@ export class EventModal {
                 alert('У каждого ученика должна быть выбрана компенсация');
                 return null;
             }
+        }
+
+        if (this.currentEvent?.status === 'note') {
+            formData.completion_status = '';
         }
 
         // ✅ ИСПОЛЬЗУЕМ DTO ДЛЯ АВТОМАТИЧЕСКОЙ ПОДГОТОВКИ ДАННЫХ
